@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+    <Type Name="ustring">
+        <DisplayString Condition="_size == 0">(buf={_using_buffer}) empty</DisplayString>
+        <DisplayString Condition="_using_buffer == true">(buf={_using_buffer}) {_buf,[_size]} </DisplayString>
+        <DisplayString Condition="_using_buffer == false">(buf={_using_buffer}) {_ptr,[_size]}</DisplayString>
+        <StringView Condition="_using_buffer == true">_buf,[_size]</StringView>
+        <StringView Condition="_using_buffer == false">_ptr,[_size]</StringView>
+        <Expand>
+            <Item Name="[size]">_size</Item>
+            <Item Name="[capacity]">_capacity</Item>
+            <Item Name="[using buffer]">_using_buffer</Item>
+            <Item Name="[data]" Condition="_using_buffer == false">_ptr</Item>
+            <Item Name="[data]" Condition="_using_buffer == true">_buf</Item>
+            <ArrayItems>
+                <Size>_size</Size>
+                <ValuePointer Condition="_using_buffer == true">_buf</ValuePointer>
+                <ValuePointer Condition="_using_buffer == false">_ptr</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="ustring::view">
+        <DisplayString Condition="_size == 0"> empty</DisplayString>
+        <StringView>_data,[_size]</StringView>
+        <Expand>
+            <Item Name="[size]">_size</Item>
+            <Item Name="[data]">_data</Item>
+            <ArrayItems>
+                <Size>_size</Size>
+                <ValuePointer>_data</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <!-- 
+  <Type Name="ustring::view">
+    <DisplayString Condition="size_ == 0">empty</DisplayString>
+    <DisplayString>{data_,[size_]}</DisplayString>
+    <StringView>data_,[size_]</StringView>
+    <Expand>
+      <Item Name="[size]">size_</Item>
+      <ArrayItems>
+        <Size>size_</Size>
+        <ValuePointer>data_</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="ustring::code_point_iterator">
+    <DisplayString Condition="!_str">invalid</DisplayString>
+    <DisplayString Condition="_pos == ustring::npos">end</DisplayString>
+    <DisplayString>pos={_pos} cp=U+{_codepoint,Xb} '{(char)_codepoint,c}' in {(_str->_using_buffer ? _str->_buf : _str->_ptr),[_str->_size]}</DisplayString>
+    <Expand>
+      <Item Name="[position]">_pos</Item>
+      <Item Name="[size]">_size</Item>
+      <Item Name="[codepoint]">_codepoint</Item>
+      <Item Name="[source string]" VisualizerOnly="true">*_str</Item>
+      <ArrayItems>
+        <Size>_size</Size>
+        <ValuePointer>(_str->_using_buffer ? _str->_buf : _str->_ptr) + _pos</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="ustring::word_iterator">
+    <DisplayString Condition="!str_">invalid</DisplayString>
+    <DisplayString Condition="pos_ == ustring::npos">end</DisplayString>
+    <DisplayString>pos={pos_} size={word_size_} len={word_length_} in {(str_->_using_buffer ? str_->_buf : str_->_ptr),[str_->_size]}</DisplayString>
+    <Expand>
+      <Item Name="[position]">pos_</Item>
+      <Item Name="[word size]">word_size_</Item>
+      <Item Name="[word length]">word_length_</Item>
+      <Item Name="[source string]" VisualizerOnly="true">*str_</Item>
+      <ArrayItems>
+        <Size>word_size_</Size>
+        <ValuePointer>(str_->_using_buffer ? str_->_buf : str_->_ptr) + pos_</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type> -->
+</AutoVisualizer>
