@@ -3410,7 +3410,9 @@ ustring::code_point_iterator &ustring::code_point_iterator::operator--()
 {
   _size = 0;
   if (_data > _start) {
-    U8_PREV(_data, 0, _size, _codepoint);
+    int32_t diff = _data - _start, oldDiff = diff;
+    U8_PREV(_start, 0, diff, _codepoint);
+    _size = oldDiff - diff;
     _data -= _size;
   }
   else {
@@ -3424,11 +3426,14 @@ ustring::code_point_iterator ustring::code_point_iterator::operator-=(size_t ste
   while (step-- > 0) {
     _size = 0;
     if (_data > _start) {
-      U8_PREV(_data, 0, _size, _codepoint);
+      int32_t diff = _data - _start, oldDiff = diff;
+      U8_PREV(_start, 0, diff, _codepoint);
+      _size = oldDiff - diff;
       _data -= _size;
     }
     else {
       _codepoint = 0;
+      break;
     }
   }
   return *this;
