@@ -532,6 +532,8 @@ class ustring {
   };
 
   class word_iterator;
+  class grapheme_iterator;
+  class sentence_iterator;
 
   word_iterator words_begin() const;
   word_iterator words_end() const;
@@ -949,6 +951,14 @@ class ustring {
   [[nodiscard]] pointer data() noexcept;
   [[nodiscard]] const_pointer data() const noexcept;
 
+  grapheme_iterator graphemes_begin() const;
+  grapheme_iterator graphemes_end() const;
+  std::pair<grapheme_iterator, grapheme_iterator> graphemes() const;
+
+  sentence_iterator sentences_begin() const;
+  sentence_iterator sentences_end() const;
+  std::pair<sentence_iterator, sentence_iterator> sentences() const;
+
  private:
   bool is_using_buffer() const
   {
@@ -976,15 +986,14 @@ template<> struct std::formatter<ustring> : std::formatter<std::string_view> {
   }
 };
 
-// todo: add start and end
 class ustring::word_iterator {
  public:
   using iterator_category = std::bidirectional_iterator_tag;
   using value_type = ustring;
   using pointer = ustring_view *;
   using const_pointer = const ustring_view *;
-  using reference = ustring_view&;
-  using const_reference = const ustring_view&;
+  using reference = ustring_view &;
+  using const_reference = const ustring_view &;
   using difference_type = ptrdiff_t;
 
   explicit word_iterator(const ustring &str,
@@ -1020,6 +1029,102 @@ class ustring::word_iterator {
   bool is_end() const;
 
  private:
+ private:
+#ifdef _DEBUG
+  const ustring *_owner;
+#endif
+  const ustring::value_type *_start, *_end;
+  ustring_view _view;
+  void *_break_iterator;  // UBreakIterator*
+  void *_text;            // UText*
+};
+
+class ustring::grapheme_iterator {
+ public:
+  using iterator_category = std::bidirectional_iterator_tag;
+  using value_type = ustring;
+  using pointer = ustring_view *;
+  using const_pointer = const ustring_view *;
+  using reference = ustring_view &;
+  using const_reference = const ustring_view &;
+  using difference_type = ptrdiff_t;
+
+  explicit grapheme_iterator(const ustring &str, size_type pos = 0, const char *locale = nullptr);
+  grapheme_iterator(const grapheme_iterator &);
+  grapheme_iterator &operator=(const grapheme_iterator &);
+  ~grapheme_iterator();
+
+  grapheme_iterator &operator++();
+  grapheme_iterator operator++(int);
+  grapheme_iterator &operator--();
+  grapheme_iterator operator--(int);
+
+  const_reference operator*() const;
+  reference operator*();
+  const_pointer operator->() const;
+  pointer operator->();
+
+  bool operator==(const grapheme_iterator &) const;
+  bool operator!=(const grapheme_iterator &) const;
+
+  size_type position() const
+  {
+    return _view.data() - _start;
+  }
+  size_type grapheme_size() const
+  {
+    return _view.size();
+  }
+  bool is_end() const;
+
+ private:
+#ifdef _DEBUG
+  const ustring *_owner;
+#endif
+  const ustring::value_type *_start, *_end;
+  ustring_view _view;
+  void *_break_iterator;  // UBreakIterator*
+  void *_text;            // UText*
+};
+
+class ustring::sentence_iterator {
+ public:
+  using iterator_category = std::bidirectional_iterator_tag;
+  using value_type = ustring;
+  using pointer = ustring_view *;
+  using const_pointer = const ustring_view *;
+  using reference = ustring_view &;
+  using const_reference = const ustring_view &;
+  using difference_type = ptrdiff_t;
+
+  explicit sentence_iterator(const ustring &str, size_type pos = 0, const char *locale = nullptr);
+  sentence_iterator(const sentence_iterator &);
+  sentence_iterator &operator=(const sentence_iterator &);
+  ~sentence_iterator();
+
+  sentence_iterator &operator++();
+  sentence_iterator operator++(int);
+  sentence_iterator &operator--();
+  sentence_iterator operator--(int);
+
+  const_reference operator*() const;
+  reference operator*();
+  const_pointer operator->() const;
+  pointer operator->();
+
+  bool operator==(const sentence_iterator &) const;
+  bool operator!=(const sentence_iterator &) const;
+
+  size_type position() const
+  {
+    return _view.data() - _start;
+  }
+  size_type sentence_size() const
+  {
+    return _view.size();
+  }
+  bool is_end() const;
+
  private:
 #ifdef _DEBUG
   const ustring *_owner;

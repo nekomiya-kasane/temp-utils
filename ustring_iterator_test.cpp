@@ -763,3 +763,372 @@ TEST_F(UStringPropertyTest, CodepointConversionOverloads)
 //   EXPECT_TRUE(static_cast<int>(prop_newline) &
 //               static_cast<int>(CharProperty::WHITESPACE | CharProperty::CONTROL));
 // }
+
+TEST(IteratorTest, GraphemeIterator)
+{
+  // Basic ASCII string
+  ustring ascii("Hello World");
+  std::vector<ustring_view> graphemes;
+  for (auto it = ascii.graphemes_begin(); it != ascii.graphemes_end(); ++it) {
+    graphemes.push_back(*it);
+  }
+  EXPECT_EQ(graphemes.size(), 11);  // Each ASCII char is one grapheme
+
+  // String with combining characters
+  ustring combining("e\u0301");  // é (e + acute accent)
+  auto it = combining.graphemes_begin();
+  EXPECT_EQ((*it).size(), 3);  // One grapheme cluster of 3 bytes
+  ++it;
+  EXPECT_EQ(it, combining.graphemes_end());
+
+  // String with emoji
+  ustring emoji("👨‍👩‍👧‍👦");  // Family emoji (multiple code points)
+  it = emoji.graphemes_begin();
+  EXPECT_NE(it, emoji.graphemes_end());
+  EXPECT_EQ((*it).size(), emoji.size());  // Entire emoji is one grapheme
+  ++it;
+  EXPECT_EQ(it, emoji.graphemes_end());
+
+  // Bidirectional iteration
+  ustring text("ABC");
+  it = text.graphemes_end();
+  --it;
+  EXPECT_EQ((*it)[0], 'C');
+  --it;
+  EXPECT_EQ((*it)[0], 'B');
+  --it;
+  EXPECT_EQ((*it)[0], 'A');
+
+  // Empty string
+  ustring empty("");
+  EXPECT_EQ(empty.graphemes_begin(), empty.graphemes_end());
+}
+
+TEST(IteratorTest, SentenceIterator)
+{
+  // Basic sentences
+  ustring text("Hello world. How are you? I'm fine!");
+  std::vector<ustring_view> sentences;
+  for (auto it = text.sentences_begin(); it != text.sentences_end(); ++it) {
+    sentences.push_back(*it);
+  }
+  EXPECT_EQ(sentences.size(), 3);
+  EXPECT_EQ(sentences[0], "Hello world. ");
+  EXPECT_EQ(sentences[1], "How are you? ");
+  EXPECT_EQ(sentences[2], "I'm fine!");
+
+  // Single sentence
+  ustring single("Just one sentence.");
+  auto it = single.sentences_begin();
+  EXPECT_EQ(*it, "Just one sentence.");
+  ++it;
+  EXPECT_EQ(it, single.sentences_end());
+
+  // Multiple sentence endings
+  ustring multiple("First!! Second?? Third...");
+  sentences.clear();
+  for (auto it = multiple.sentences_begin(); it != multiple.sentences_end(); ++it) {
+    sentences.push_back(*it);
+  }
+  EXPECT_EQ(sentences.size(), 3);
+
+  // Bidirectional iteration
+  it = text.sentences_end();
+  --it;
+  EXPECT_EQ(*it, "I'm fine!");
+  --it;
+  EXPECT_EQ(*it, "How are you? ");
+  --it;
+  EXPECT_EQ(*it, "Hello world. ");
+
+  // Empty string
+  ustring empty("");
+  EXPECT_EQ(empty.sentences_begin(), empty.sentences_end());
+
+  // Unicode sentences
+  ustring unicode("¡Hola! ¿Cómo estás? Bien.");
+  sentences.clear();
+  for (auto it = unicode.sentences_begin(); it != unicode.sentences_end(); ++it) {
+    sentences.push_back(*it);
+  }
+  EXPECT_EQ(sentences.size(), 3);
+}
+
+// Test both iterators with various edge cases
+TEST(IteratorTest, EdgeCases)
+{
+  // Mixed text with emojis and sentences
+  ustring mixed("Hi 👋! How are you 😊? I'm good 👍.");
+
+  // Test grapheme iteration
+  int grapheme_count = 0;
+  for (auto it = mixed.graphemes_begin(); it != mixed.graphemes_end(); ++it) {
+    grapheme_count++;
+  }
+  EXPECT_GT(grapheme_count, 3);  // Should be more than just the emojis
+
+  // Test sentence iteration
+  std::vector<ustring_view> sentences;
+  for (auto it = mixed.sentences_begin(); it != mixed.sentences_end(); ++it) {
+    sentences.push_back(*it);
+  }
+  EXPECT_EQ(sentences.size(), 3);
+
+  // Test with various whitespace
+  ustring whitespace("\n\nFirst.\n\nSecond.\n\n");
+  int sentence_count = 0;
+  for (auto it = whitespace.sentences_begin(); it != whitespace.sentences_end(); ++it) {
+    sentence_count++;
+  }
+  EXPECT_EQ(sentence_count, 6);
+
+  // Test with non-breaking spaces and other special characters
+  ustring special("First\u00A0sentence.\u2003Second\u2003sentence.");
+  sentence_count = 0;
+  for (auto it = special.sentences_begin(); it != special.sentences_end(); ++it) {
+    sentence_count++;
+  }
+  EXPECT_EQ(sentence_count, 2);
+}
+
+// Test iterator invalidation
+TEST(IteratorTest, IteratorInvalidation)
+{
+  ustring text("Hello. World.");
+  auto sentence_it = text.sentences_begin();
+  auto grapheme_it = text.graphemes_begin();
+
+  // Store the current values
+  auto sentence_view = *sentence_it;
+  auto grapheme_view = *grapheme_it;
+
+  // Create a new string with the same content
+  ustring text2("Hello. World.");
+
+  // The iterators should still be valid for the original string
+  EXPECT_EQ(*sentence_it, sentence_view);
+  EXPECT_EQ(*grapheme_it, grapheme_view);
+}
+
+// Test copy construction and assignment
+TEST(IteratorTest, CopyAndAssignment)
+{
+  ustring text("Hello. World.");
+
+  // Test sentence iterator
+  auto sent_it1 = text.sentences_begin();
+  auto sent_it2(sent_it1);  // Copy construction
+  EXPECT_EQ(*sent_it1, *sent_it2);
+
+  auto sent_it3 = text.sentences_end();
+  sent_it3 = sent_it1;  // Assignment
+  EXPECT_EQ(*sent_it1, *sent_it3);
+
+  // Test grapheme iterator
+  auto graph_it1 = text.graphemes_begin();
+  auto graph_it2(graph_it1);  // Copy construction
+  EXPECT_EQ(*graph_it1, *graph_it2);
+
+  auto graph_it3 = text.graphemes_end();
+  graph_it3 = graph_it1;  // Assignment
+  EXPECT_EQ(*graph_it1, *graph_it3);
+}
+
+// Test grapheme iterator with various scripts and languages
+TEST(IteratorTest, MultilingualGraphemes)
+{
+  // Chinese characters and punctuation
+  ustring chinese("你好，世界！");
+  std::vector<ustring_view> graphemes;
+  for (auto it = chinese.graphemes_begin(); it != chinese.graphemes_end(); ++it) {
+    graphemes.push_back(*it);
+  }
+  EXPECT_EQ(graphemes.size(), 6);  // 5 characters + 1 punctuation
+
+  // Korean with combining characters
+  ustring korean("안녕하세요");  // Hello in Korean
+  graphemes.clear();
+  for (auto it = korean.graphemes_begin(); it != korean.graphemes_end(); ++it) {
+    graphemes.push_back(*it);
+  }
+  EXPECT_EQ(graphemes.size(), 5);  // 5 syllable blocks
+
+  // Thai with combining marks
+  ustring thai("สวัสดี");  // Hello in Thai
+  graphemes.clear();
+  for (auto it = thai.graphemes_begin(); it != thai.graphemes_end(); ++it) {
+    graphemes.push_back(*it);
+  }
+  EXPECT_EQ(graphemes.size(), 4);  // Thai clusters
+
+  // Devanagari with combining marks
+  ustring devanagari("नमस्ते");  // Namaste in Hindi
+  auto it = devanagari.graphemes_begin();
+  EXPECT_NE(it, devanagari.graphemes_end());
+  EXPECT_GT((*it).size(), 1);  // Should be more than 1 byte due to combining marks
+
+  // Zero-width joiner sequences
+  ustring zwj("👨‍👩‍👧‍👦👨‍💻👩‍🔬");
+  graphemes.clear();
+  for (auto it = zwj.graphemes_begin(); it != zwj.graphemes_end(); ++it) {
+    graphemes.push_back(*it);
+  }
+  EXPECT_EQ(graphemes.size(), 3);  // 3 emoji sequences
+
+  // Regional indicators (flags)
+  ustring flags("🇯🇵🇰🇷🇨🇳");  // Japan, Korea, China flags
+  graphemes.clear();
+  for (auto it = flags.graphemes_begin(); it != flags.graphemes_end(); ++it) {
+    graphemes.push_back(*it);
+  }
+  EXPECT_EQ(graphemes.size(), 3);  // 3 flags
+}
+
+// Test sentence iterator with various scripts and languages
+TEST(IteratorTest, MultilingualSentences)
+{
+  // Chinese with mixed punctuation
+  ustring chinese("你好！这是一个测试。你觉得怎么样？");
+  std::vector<ustring_view> sentences;
+  for (auto it = chinese.sentences_begin(); it != chinese.sentences_end(); ++it) {
+    sentences.push_back(*it);
+  }
+  EXPECT_EQ(sentences.size(), 3);
+
+  // Japanese with mixed punctuation
+  ustring japanese("こんにちは。元気ですか？はい、元気です！");
+  sentences.clear();
+  for (auto it = japanese.sentences_begin(); it != japanese.sentences_end(); ++it) {
+    sentences.push_back(*it);
+  }
+  EXPECT_EQ(sentences.size(), 3);
+
+  // Korean with various endings
+  ustring korean("안녕하세요? 잘 지내요... 네, 감사합니다!");
+  sentences.clear();
+  for (auto it = korean.sentences_begin(); it != korean.sentences_end(); ++it) {
+    sentences.push_back(*it);
+  }
+  EXPECT_EQ(sentences.size(), 3);
+
+  // Mixed scripts
+  ustring mixed("Hello! 你好。안녕하세요? Bonjour!");
+  sentences.clear();
+  for (auto it = mixed.sentences_begin(); it != mixed.sentences_end(); ++it) {
+    sentences.push_back(*it);
+  }
+  EXPECT_EQ(sentences.size(), 4);
+
+  // Arabic with different sentence endings
+  ustring arabic("مرحبا! كيف حالك؟ أنا بخير.");
+  sentences.clear();
+  for (auto it = arabic.sentences_begin(); it != arabic.sentences_end(); ++it) {
+    sentences.push_back(*it);
+  }
+  EXPECT_EQ(sentences.size(), 3);
+
+  // Complex punctuation cases
+  ustring complex("Test... test...? Test!.. Next.");
+  sentences.clear();
+  for (auto it = complex.sentences_begin(); it != complex.sentences_end(); ++it) {
+    sentences.push_back(*it);
+  }
+  EXPECT_EQ(sentences.size(), 3);
+}
+
+// Test edge cases with special Unicode characters
+TEST(IteratorTest, SpecialUnicodeEdgeCases)
+{
+  // Surrogate pairs
+  ustring surrogate("𝄞𝄢𝄪");  // Musical symbols
+  int count = 0;
+  for (auto it = surrogate.graphemes_begin(); it != surrogate.graphemes_end(); ++it) {
+    count++;
+  }
+  EXPECT_EQ(count, 3);
+
+  // Variation selectors
+  ustring variation("️☹️☺️");  // Emoji variation sequences
+  count = 0;
+  for (auto it = variation.graphemes_begin(); it != variation.graphemes_end(); ++it) {
+    count++;
+  }
+  EXPECT_EQ(count, 3);
+
+  // Bidirectional text
+  ustring bidi("Hello! مرحبا! שָׁלוֹם!");
+  std::vector<ustring_view> sentences;
+  for (auto it = bidi.sentences_begin(); it != bidi.sentences_end(); ++it) {
+    sentences.push_back(*it);
+  }
+  EXPECT_EQ(sentences.size(), 3);
+
+  // Text with various Unicode spaces and separators
+  ustring spaces("First\u2028Second\u2029Third");  // Line/paragraph separators
+  count = 0;
+  for (auto it = spaces.sentences_begin(); it != spaces.sentences_end(); ++it) {
+    count++;
+  }
+  EXPECT_EQ(count, 3);
+
+  // Combining characters with multiple combining marks
+  ustring combining("e\u0301\u0308");  // e + acute + diaeresis
+  auto it = combining.graphemes_begin();
+  EXPECT_EQ((*it).size(), 5);  // One grapheme cluster of 4 bytes
+  ++it;
+  EXPECT_EQ(it, combining.graphemes_end());
+}
+
+// Test boundary conditions and error cases
+TEST(IteratorTest, BoundaryAndErrorCases)
+{
+  // Empty string iterations
+  ustring empty;
+  EXPECT_EQ(empty.graphemes_begin(), empty.graphemes_end());
+  EXPECT_EQ(empty.sentences_begin(), empty.sentences_end());
+
+  // Single character strings
+  ustring single(".");
+  auto git = single.graphemes_begin();
+  EXPECT_NE(git, single.graphemes_end());
+  ++git;
+  EXPECT_EQ(git, single.graphemes_end());
+
+  // String with only spaces
+  ustring spaces("   \t\n   ");
+  std::vector<ustring_view> graphemes;
+  for (auto it = spaces.graphemes_begin(); it != spaces.graphemes_end(); ++it) {
+    graphemes.push_back(*it);
+  }
+  EXPECT_EQ(graphemes.size(), 8);
+
+  // Invalid UTF-8 sequences should be handled gracefully
+  // Note: This test depends on how ICU handles invalid sequences
+  ustring invalid("\xFF\xFE\xFD");
+  int count = 0;
+  for (auto it = invalid.graphemes_begin(); it != invalid.graphemes_end(); ++it) {
+    count++;
+  }
+  EXPECT_GT(count, 0);  // Should handle invalid sequences somehow
+
+  // Test iterator movement at boundaries
+  ustring text("A.B.C.");
+  auto sit = text.sentences_begin();
+  auto end = text.sentences_end();
+
+  // Move forward to end
+  while (sit != end) {
+    ++sit;
+  }
+  // Try moving past end
+  ++sit;
+  EXPECT_EQ(sit, end);
+
+  // Move backward from end
+  while (sit != text.sentences_begin()) {
+    --sit;
+  }
+  // Try moving before beginning
+  --sit;
+  EXPECT_EQ(sit, text.sentences_begin());
+}

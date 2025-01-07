@@ -3453,6 +3453,285 @@ ustring::code_point_iterator ustring::code_point_iterator::operator-(size_t step
   return tmp -= step;
 }
 
+ustring::grapheme_iterator::grapheme_iterator(const ustring &str,
+                                              size_type pos,
+                                              const char *locale)
+    : _view(str.data() + pos, 0),
+      _end(str.data() + str.size()),
+      _start(str.data()),
+      _break_iterator(nullptr),
+      _text(nullptr)
+{
+#ifdef _DEBUG
+  _owner = &str;
+#endif
+  UErrorCode status = U_ZERO_ERROR;
+  _break_iterator = ubrk_open(UBRK_CHARACTER, locale, nullptr, 0, &status);
+  if (!U_SUCCESS(status)) {
+    throw "Failed to create grapheme iterator";
+  }
+
+  auto break_it = static_cast<UBreakIterator *>(_break_iterator);
+  status = U_ZERO_ERROR;
+  _text = utext_openUTF8(nullptr, reinterpret_cast<const char *>(_start), _end - _start, &status);
+  if (!U_SUCCESS(status)) {
+    ubrk_close(break_it);
+    throw "Failed to open utf-8 string";
+  }
+
+  auto text_it = static_cast<UText *>(_text);
+  status = U_ZERO_ERROR;
+  ubrk_setUText(break_it, text_it, &status);
+  if (!U_SUCCESS(status)) {
+    utext_close(text_it);
+    ubrk_close(break_it);
+    throw "Failed to set utext";
+  }
+
+  auto curr_pos = _view.data() - _start;
+  curr_pos = curr_pos > 0 ? ubrk_following(break_it, curr_pos) : ubrk_first(break_it);
+
+  if (curr_pos == UBRK_DONE) {
+    _view = {_end, 0};
+    return;
+  }
+
+  _view = {_start + curr_pos, 0};
+  int32_t next = ubrk_next(break_it);
+  if (next != UBRK_DONE) {
+    _view = {_view.data(), static_cast<size_type>(next - curr_pos)};
+  }
+}
+
+ustring::grapheme_iterator::grapheme_iterator(const grapheme_iterator &other)
+    : _view(other._view),
+      _end(other._end),
+      _start(other._start),
+      _break_iterator(nullptr),
+      _text(nullptr)
+{
+#ifdef _DEBUG
+  _owner = other._owner;
+#endif
+  if (!other._break_iterator) {
+    return;
+  }
+
+  UErrorCode status = U_ZERO_ERROR;
+  _break_iterator = ubrk_safeClone(
+      static_cast<UBreakIterator *>(other._break_iterator), nullptr, nullptr, &status);
+  if (!U_SUCCESS(status)) {
+    return;
+  }
+
+  auto break_it = static_cast<UBreakIterator *>(_break_iterator);
+  status = U_ZERO_ERROR;
+  _text = utext_openUTF8(nullptr, reinterpret_cast<const char *>(_start), _end - _start, &status);
+  if (!U_SUCCESS(status)) {
+    ubrk_close(break_it);
+    _break_iterator = nullptr;
+    return;
+  }
+
+  auto text_it = static_cast<UText *>(_text);
+  status = U_ZERO_ERROR;
+  ubrk_setUText(break_it, text_it, &status);
+  if (U_SUCCESS(status)) {
+    int32_t pos = std::max(0, static_cast<int32_t>(_view.data() - _start));
+    ubrk_following(break_it, pos);
+  }
+}
+
+ustring::grapheme_iterator::~grapheme_iterator()
+{
+  if (_text) {
+    utext_close(static_cast<UText *>(_text));
+  }
+  if (_break_iterator) {
+    ubrk_close(static_cast<UBreakIterator *>(_break_iterator));
+  }
+}
+
+ustring::grapheme_iterator &ustring::grapheme_iterator::operator=(const grapheme_iterator &other)
+{
+  if (this == &other) {
+    return *this;
+  }
+
+  _view = other._view;
+  _end = other._end;
+  _start = other._start;
+#ifdef _DEBUG
+  _owner = other._owner;
+#endif
+
+  if (_text) {
+    utext_close(static_cast<UText *>(_text));
+    _text = nullptr;
+  }
+  if (_break_iterator) {
+    ubrk_close(static_cast<UBreakIterator *>(_break_iterator));
+    _break_iterator = nullptr;
+  }
+
+  if (!other._break_iterator) {
+    return *this;
+  }
+
+  UErrorCode status = U_ZERO_ERROR;
+  _break_iterator = ubrk_safeClone(
+      static_cast<UBreakIterator *>(other._break_iterator), nullptr, nullptr, &status);
+  if (!U_SUCCESS(status)) {
+    return *this;
+  }
+
+  auto break_it = static_cast<UBreakIterator *>(_break_iterator);
+  status = U_ZERO_ERROR;
+  _text = utext_openUTF8(nullptr, reinterpret_cast<const char *>(_start), _end - _start, &status);
+  if (!U_SUCCESS(status)) {
+    ubrk_close(break_it);
+    _break_iterator = nullptr;
+    return *this;
+  }
+
+  auto text_it = static_cast<UText *>(_text);
+  status = U_ZERO_ERROR;
+  ubrk_setUText(break_it, text_it, &status);
+  if (U_SUCCESS(status)) {
+    int32_t pos = std::max(0, static_cast<int32_t>(_view.data() - _start));
+    ubrk_following(break_it, pos);
+  }
+  return *this;
+}
+
+ustring::grapheme_iterator &ustring::grapheme_iterator::operator++()
+{
+  if (is_end() || !_break_iterator) {
+    return *this;
+  }
+
+  auto break_it = static_cast<UBreakIterator *>(_break_iterator);
+
+  int32_t curr_pos = _view.data() - _start + _view.size();
+  int32_t next = ubrk_following(break_it, curr_pos);
+  if (next == UBRK_DONE) {
+    _view = {_end, 0};
+    return *this;
+  }
+  _view = {_start + curr_pos, (next - curr_pos)};
+  return *this;
+}
+
+ustring::grapheme_iterator &ustring::grapheme_iterator::operator--()
+{
+  if (!_break_iterator || _view.data() == _start) {
+    return *this;
+  }
+
+  auto break_it = static_cast<UBreakIterator *>(_break_iterator);
+
+  // If we're at the end, we need to find the last boundary
+  if (is_end()) {
+    int32_t last = ubrk_last(break_it);
+    if (last == UBRK_DONE) {
+      return *this;
+    }
+    int32_t prev = ubrk_previous(break_it);
+    if (prev != UBRK_DONE) {
+      _view = {_start + prev, static_cast<size_type>(last - prev)};
+    }
+    else {
+      _view = {_start, static_cast<size_type>(last)};
+    }
+    return *this;
+  }
+
+  // Get current position and find previous boundary
+  int32_t curr_pos = _view.data() - _start;
+  ubrk_isBoundary(break_it, curr_pos);  // Set iterator to current position
+  int32_t prev = ubrk_previous(break_it);
+  if (prev == UBRK_DONE) {
+    return *this;
+  }
+
+  int32_t prev2 = ubrk_previous(break_it);
+  if (prev2 != UBRK_DONE) {
+    _view = {_start + prev2, static_cast<size_type>(prev - prev2)};
+    ubrk_next(break_it);  // Restore iterator position
+  }
+  else {
+    _view = {_start, static_cast<size_type>(prev)};
+  }
+
+  return *this;
+}
+
+ustring::grapheme_iterator ustring::grapheme_iterator::operator++(int)
+{
+  grapheme_iterator tmp(*this);
+  ++*this;
+  return tmp;
+}
+
+ustring::grapheme_iterator ustring::grapheme_iterator::operator--(int)
+{
+  grapheme_iterator tmp(*this);
+  --*this;
+  return tmp;
+}
+
+ustring::grapheme_iterator::const_reference ustring::grapheme_iterator::operator*() const
+{
+  return _view;
+}
+
+ustring::grapheme_iterator::reference ustring::grapheme_iterator::operator*()
+{
+  return _view;
+}
+
+ustring::grapheme_iterator::const_pointer ustring::grapheme_iterator::operator->() const
+{
+  return &_view;
+}
+
+ustring::grapheme_iterator::pointer ustring::grapheme_iterator::operator->()
+{
+  return &_view;
+}
+
+bool ustring::grapheme_iterator::operator==(const grapheme_iterator &other) const
+{
+  return _view.data() == other._view.data();
+}
+
+bool ustring::grapheme_iterator::operator!=(const grapheme_iterator &other) const
+{
+  return !(*this == other);
+}
+
+bool ustring::grapheme_iterator::is_end() const
+{
+  assert(_view.data() <= _end);
+  return _view.data() == _end;
+}
+
+// Helper functions implementation
+ustring::grapheme_iterator ustring::graphemes_begin() const
+{
+  return grapheme_iterator(*this, 0);
+}
+
+ustring::grapheme_iterator ustring::graphemes_end() const
+{
+  return grapheme_iterator(*this, size());
+}
+
+std::pair<ustring::grapheme_iterator, ustring::grapheme_iterator> ustring::graphemes() const
+{
+  return {graphemes_begin(), graphemes_end()};
+}
+
 ustring::word_iterator::word_iterator(const ustring &str,
                                       size_type pos,
                                       const char *locale,
@@ -3493,14 +3772,14 @@ ustring::word_iterator::word_iterator(const ustring &str,
   curr_pos = curr_pos > 0 ? ubrk_following(break_it, curr_pos) : ubrk_first(break_it);
 
   if (curr_pos == UBRK_DONE) {
-    _view = {_end, _view.size()};
+    _view = {_end, 0};
     return;
   }
 
-  _view = {_start + curr_pos, _view.size()};
+  _view = {_start + curr_pos, 0};
   int32_t next = ubrk_next(break_it);
   if (next != UBRK_DONE) {
-    _view = {_view.data(), static_cast<int>(next - curr_pos)};
+    _view = {_view.data(), static_cast<size_type>(next - curr_pos)};
   }
 }
 
@@ -3616,8 +3895,8 @@ ustring::word_iterator &ustring::word_iterator::operator++()
   int32_t curr_pos = _view.data() - _start + _view.size();
   int32_t next = ubrk_next(break_it);
   if (next != UBRK_DONE) {
-    _view = {_start + curr_pos, static_cast<int>(next - curr_pos)};
-    //ubrk_previous(break_it);  // Restore iterator position
+    _view = {_start + curr_pos, static_cast<size_type>(next - curr_pos)};
+    // ubrk_previous(break_it);  // Restore iterator position
   }
   else {
     _view = {_end, 0};
@@ -3738,4 +4017,282 @@ ustring::word_iterator ustring::word_iterator::operator--(int)
   word_iterator tmp(*this);
   --*this;
   return tmp;
+}
+
+ustring::sentence_iterator::sentence_iterator(const ustring &str,
+                                              size_type pos,
+                                              const char *locale)
+    : _view(str.data() + pos, 0),
+      _end(str.data() + str.size()),
+      _start(str.data()),
+      _break_iterator(nullptr),
+      _text(nullptr)
+{
+#ifdef _DEBUG
+  _owner = &str;
+#endif
+  UErrorCode status = U_ZERO_ERROR;
+  _break_iterator = ubrk_open(UBRK_SENTENCE, locale, nullptr, 0, &status);
+  if (!U_SUCCESS(status)) {
+    throw "Failed to create sentence iterator";
+  }
+
+  auto break_it = static_cast<UBreakIterator *>(_break_iterator);
+  status = U_ZERO_ERROR;
+  _text = utext_openUTF8(nullptr, reinterpret_cast<const char *>(_start), _end - _start, &status);
+  if (!U_SUCCESS(status)) {
+    ubrk_close(break_it);
+    throw "Failed to open utf-8 string";
+  }
+
+  auto text_it = static_cast<UText *>(_text);
+  status = U_ZERO_ERROR;
+  ubrk_setUText(break_it, text_it, &status);
+  if (!U_SUCCESS(status)) {
+    utext_close(text_it);
+    ubrk_close(break_it);
+    throw "Failed to set utext";
+  }
+
+  auto curr_pos = _view.data() - _start;
+  curr_pos = curr_pos > 0 ? ubrk_following(break_it, curr_pos) : ubrk_first(break_it);
+
+  if (curr_pos == UBRK_DONE) {
+    _view = {_end, 0};
+    return;
+  }
+
+  _view = {_start + curr_pos, 0};
+  int32_t next = ubrk_following(break_it, curr_pos);
+  if (next != UBRK_DONE) {
+    _view = {_view.data(), static_cast<size_type>(next - curr_pos)};
+  }
+}
+
+ustring::sentence_iterator::sentence_iterator(const sentence_iterator &other)
+    : _view(other._view),
+      _end(other._end),
+      _start(other._start),
+      _break_iterator(nullptr),
+      _text(nullptr)
+{
+#ifdef _DEBUG
+  _owner = other._owner;
+#endif
+  if (!other._break_iterator) {
+    return;
+  }
+
+  UErrorCode status = U_ZERO_ERROR;
+  _break_iterator = ubrk_safeClone(
+      static_cast<UBreakIterator *>(other._break_iterator), nullptr, nullptr, &status);
+  if (!U_SUCCESS(status)) {
+    return;
+  }
+
+  auto break_it = static_cast<UBreakIterator *>(_break_iterator);
+  status = U_ZERO_ERROR;
+  _text = utext_openUTF8(nullptr, reinterpret_cast<const char *>(_start), _end - _start, &status);
+  if (!U_SUCCESS(status)) {
+    ubrk_close(break_it);
+    _break_iterator = nullptr;
+    return;
+  }
+
+  auto text_it = static_cast<UText *>(_text);
+  status = U_ZERO_ERROR;
+  ubrk_setUText(break_it, text_it, &status);
+  if (U_SUCCESS(status)) {
+    int32_t pos = std::max(0, static_cast<int32_t>(_view.data() - _start));
+    ubrk_following(break_it, pos);
+  }
+}
+
+ustring::sentence_iterator::~sentence_iterator()
+{
+  if (_text) {
+    utext_close(static_cast<UText *>(_text));
+  }
+  if (_break_iterator) {
+    ubrk_close(static_cast<UBreakIterator *>(_break_iterator));
+  }
+}
+
+ustring::sentence_iterator &ustring::sentence_iterator::operator=(const sentence_iterator &other)
+{
+  if (this == &other) {
+    return *this;
+  }
+
+  _view = other._view;
+  _end = other._end;
+  _start = other._start;
+#ifdef _DEBUG
+  _owner = other._owner;
+#endif
+
+  if (_text) {
+    utext_close(static_cast<UText *>(_text));
+    _text = nullptr;
+  }
+  if (_break_iterator) {
+    ubrk_close(static_cast<UBreakIterator *>(_break_iterator));
+    _break_iterator = nullptr;
+  }
+
+  if (!other._break_iterator) {
+    return *this;
+  }
+
+  UErrorCode status = U_ZERO_ERROR;
+  _break_iterator = ubrk_safeClone(
+      static_cast<UBreakIterator *>(other._break_iterator), nullptr, nullptr, &status);
+  if (!U_SUCCESS(status)) {
+    return *this;
+  }
+
+  auto break_it = static_cast<UBreakIterator *>(_break_iterator);
+  status = U_ZERO_ERROR;
+  _text = utext_openUTF8(nullptr, reinterpret_cast<const char *>(_start), _end - _start, &status);
+  if (!U_SUCCESS(status)) {
+    ubrk_close(break_it);
+    _break_iterator = nullptr;
+    return *this;
+  }
+
+  auto text_it = static_cast<UText *>(_text);
+  status = U_ZERO_ERROR;
+  ubrk_setUText(break_it, text_it, &status);
+  if (U_SUCCESS(status)) {
+    int32_t pos = std::max(0, static_cast<int32_t>(_view.data() - _start));
+    ubrk_following(break_it, pos);
+  }
+  return *this;
+}
+
+ustring::sentence_iterator &ustring::sentence_iterator::operator++()
+{
+  if (is_end() || !_break_iterator) {
+    return *this;
+  }
+
+  auto break_it = static_cast<UBreakIterator *>(_break_iterator);
+
+  int32_t curr_pos = _view.data() - _start + _view.size();
+  int32_t next = ubrk_following(break_it, curr_pos);
+  if (next == UBRK_DONE) {
+    _view = {_end, 0};
+    return *this;
+  }
+  _view = {_start + curr_pos, (next - curr_pos)};
+  return *this;
+}
+
+ustring::sentence_iterator &ustring::sentence_iterator::operator--()
+{
+  if (!_break_iterator || _view.data() == _start) {
+    return *this;
+  }
+
+  auto break_it = static_cast<UBreakIterator *>(_break_iterator);
+
+  // If we're at the end, we need to find the last boundary
+  if (is_end()) {
+    int32_t last = ubrk_last(break_it);
+    if (last == UBRK_DONE) {
+      return *this;
+    }
+    int32_t prev = ubrk_previous(break_it);
+    if (prev != UBRK_DONE) {
+      _view = {_start + prev, static_cast<size_type>(last - prev)};
+    }
+    else {
+      _view = {_start, static_cast<size_type>(last)};
+    }
+    return *this;
+  }
+
+  // Get current position and find previous boundary
+  int32_t curr_pos = _view.data() - _start;
+  ubrk_isBoundary(break_it, curr_pos);  // Set iterator to current position
+  int32_t prev = ubrk_previous(break_it);
+  if (prev == UBRK_DONE) {
+    return *this;
+  }
+
+  int32_t prev2 = ubrk_previous(break_it);
+  if (prev2 != UBRK_DONE) {
+    _view = {_start + prev2, static_cast<size_type>(prev - prev2)};
+    ubrk_next(break_it);  // Restore iterator position
+  }
+  else {
+    _view = {_start, static_cast<size_type>(prev)};
+  }
+
+  return *this;
+}
+
+ustring::sentence_iterator ustring::sentence_iterator::operator++(int)
+{
+  sentence_iterator tmp(*this);
+  ++*this;
+  return tmp;
+}
+
+ustring::sentence_iterator ustring::sentence_iterator::operator--(int)
+{
+  sentence_iterator tmp(*this);
+  --*this;
+  return tmp;
+}
+
+ustring::sentence_iterator::const_reference ustring::sentence_iterator::operator*() const
+{
+  return _view;
+}
+
+ustring::sentence_iterator::reference ustring::sentence_iterator::operator*()
+{
+  return _view;
+}
+
+ustring::sentence_iterator::const_pointer ustring::sentence_iterator::operator->() const
+{
+  return &_view;
+}
+
+ustring::sentence_iterator::pointer ustring::sentence_iterator::operator->()
+{
+  return &_view;
+}
+
+bool ustring::sentence_iterator::operator==(const sentence_iterator &other) const
+{
+  return _view.data() == other._view.data();
+}
+
+bool ustring::sentence_iterator::operator!=(const sentence_iterator &other) const
+{
+  return !(*this == other);
+}
+
+bool ustring::sentence_iterator::is_end() const
+{
+  assert(_view.data() <= _end);
+  return _view.data() == _end;
+}
+
+ustring::sentence_iterator ustring::sentences_begin() const
+{
+  return sentence_iterator(*this, 0);
+}
+
+ustring::sentence_iterator ustring::sentences_end() const
+{
+  return sentence_iterator(*this, size());
+}
+
+std::pair<ustring::sentence_iterator, ustring::sentence_iterator> ustring::sentences() const
+{
+  return {sentences_begin(), sentences_end()};
 }
