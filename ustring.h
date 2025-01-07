@@ -221,99 +221,10 @@ class ustring {
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-  class code_point_iterator {
-   public:
-    using iterator_category = std::bidirectional_iterator_tag;
-    using value_type = char32_t;
-    using pointer = char32_t *;
-    using reference = char32_t;
-    using size_type = ustring::size_type;
-    using difference_type = ustring::difference_type;
-
-    code_point_iterator();
-    code_point_iterator(const ustring &str, size_type pos = 0);
-    code_point_iterator(const code_point_iterator &);
-    code_point_iterator(code_point_iterator &&) noexcept;
-    code_point_iterator &operator=(const code_point_iterator &);
-    code_point_iterator &operator=(code_point_iterator &&) noexcept;
-
-    code_point_iterator &operator++();
-    code_point_iterator &operator++(int);
-    code_point_iterator &operator+=(size_t step);
-    code_point_iterator operator+(size_t step) const;
-    code_point_iterator &operator--();
-    code_point_iterator operator-=(size_t step);
-    code_point_iterator operator-(size_t step) const;
-
-    char32_t operator*() const
-    {
-      return _codepoint;
-    }
-    char32_t operator->() const
-    {
-      return _codepoint;
-    }
-
-    difference_type operator-(const code_point_iterator &other) const
-    {
-#ifdef _DEBUG
-      if (other._owner != _owner) {
-        throw std::runtime_error("Iterators from different strings");
-      }
-#endif
-      return static_cast<difference_type>(_data - other._data);
-    }
-
-    bool operator==(const code_point_iterator &other) const
-    {
-      return _data == other._data;
-    }
-    std::strong_ordering operator<=>(const code_point_iterator &other) const
-    {
-#ifdef _DEBUG
-      if (other._owner != _owner) {
-        throw "";
-      }
-#endif
-      return _data <=> other._data;
-    }
-
-    size_type size() const
-    {
-      return _size;
-    }
-
-    char32_t codepoint()
-    {
-      return _codepoint;
-    }
-
-    bool is_valid() const
-    {
-      return _size > 0 && _size < 4;
-    }
-    bool is_unknown() const
-    {
-      // assert(is_valid());
-      return _codepoint;
-    }
-    bool same_as(char32_t c) const
-    {
-      return is_valid() && _codepoint == c;
-    }
-    bool same_as(const code_point_iterator &c) const
-    {
-      return is_valid() && c.is_valid() && c._codepoint == _codepoint;
-    }
-
-   private:
-#ifdef _DEBUG
-    const ustring *_owner;
-#endif
-    const ustring::value_type *_data, *_end, *_start;
-    int32_t _size;  // todo: this can be 1 byte
-    char32_t _codepoint;
-  };
+  class code_point_iterator;
+  class grapheme_iterator;
+  class word_iterator;
+  class sentence_iterator;
 
   class view {
    public:
@@ -506,21 +417,56 @@ class ustring {
                               const value_type *s,
                               size_type n2) const;
 
-    // code point iterators
-    [[nodiscard]] inline code_point_iterator code_points_begin() const noexcept
+    // iterators
+    [[nodiscard]] code_point_iterator code_points_begin() const noexcept
     {
       return code_point_iterator(*this);
     }
-    [[nodiscard]] inline code_point_iterator code_points_end() const noexcept
+    [[nodiscard]] code_point_iterator code_points_end() const noexcept
     {
       return code_point_iterator(*this, size());
     }
-    [[nodiscard]] inline auto code_points() const noexcept
+    [[nodiscard]] auto code_points() const noexcept
     {
-      return std::ranges::subrange<code_point_iterator>(code_points_begin(), code_points_end());
+      return std::ranges::subrange(code_points_begin(), code_points_end());
+    }
+    [[nodiscard]] grapheme_iterator graphemes_begin() const noexcept
+    {
+      return grapheme_iterator(*this);
+    }
+    [[nodiscard]] grapheme_iterator graphemes_end() const noexcept
+    {
+      return grapheme_iterator(*this, size());
+    }
+    [[nodiscard]] auto graphemes() const noexcept
+    {
+      return std::ranges::subrange(graphemes_begin(), graphemes_end());
+    }
+    [[nodiscard]] word_iterator words_begin() const noexcept
+    {
+      return word_iterator(*this);
+    }
+    [[nodiscard]] word_iterator words_end() const noexcept
+    {
+      return word_iterator(*this, size());
+    }
+    [[nodiscard]] auto words() const noexcept
+    {
+      return std::ranges::subrange(words_begin(), words_end());
+    }
+    [[nodiscard]] sentence_iterator sentences_begin() const noexcept
+    {
+      return sentence_iterator(*this);
+    }
+    [[nodiscard]] sentence_iterator sentences_end() const noexcept
+    {
+      return sentence_iterator(*this, size());
+    }
+    [[nodiscard]] auto sentences() const noexcept
+    {
+      return std::ranges::subrange(sentences_begin(), sentences_end());
     }
 
-    [[nodiscard]] ustring unique() const;
     [[nodiscard]] std::vector<view> split(char32_t delimiter) const;
     [[nodiscard]] std::vector<view> split(std::unordered_set<char32_t> &&delimiter) const;
     [[nodiscard]] std::vector<view> split(const ustring &delimiter) const;
@@ -531,12 +477,319 @@ class ustring {
     size_type _size;
   };
 
-  class word_iterator;
-  class grapheme_iterator;
-  class sentence_iterator;
+  class code_point_iterator {
+   public:
+    using iterator_category = std::bidirectional_iterator_tag;
+    using value_type = char32_t;
+    using pointer = char32_t *;
+    using reference = char32_t;
+    using size_type = ustring::size_type;
+    using difference_type = ustring::difference_type;
 
-  word_iterator words_begin() const;
-  word_iterator words_end() const;
+    code_point_iterator();
+    code_point_iterator(const ustring &str, size_type pos = 0);
+    code_point_iterator(const code_point_iterator &);
+    code_point_iterator(code_point_iterator &&) noexcept;
+    code_point_iterator &operator=(const code_point_iterator &);
+    code_point_iterator &operator=(code_point_iterator &&) noexcept;
+
+    code_point_iterator &operator++();
+    code_point_iterator &operator++(int);
+    code_point_iterator &operator+=(size_t step);
+    code_point_iterator operator+(size_t step) const;
+    code_point_iterator &operator--();
+    code_point_iterator operator-=(size_t step);
+    code_point_iterator operator-(size_t step) const;
+
+    char32_t operator*() const
+    {
+      return _codepoint;
+    }
+    const char32_t *operator->() const
+    {
+      return &_codepoint;
+    }
+
+    difference_type operator-(const code_point_iterator &other) const
+    {
+#ifdef _DEBUG
+      if (other._owner != _owner) {
+        throw std::runtime_error("Iterators from different strings");
+      }
+#endif
+      return static_cast<difference_type>(_data - other._data);
+    }
+
+    bool operator==(const code_point_iterator &other) const
+    {
+      return _data == other._data;
+    }
+    std::strong_ordering operator<=>(const code_point_iterator &other) const
+    {
+#ifdef _DEBUG
+      if (other._owner != _owner) {
+        throw "";
+      }
+#endif
+      return _data <=> other._data;
+    }
+
+    size_type size() const
+    {
+      return _size;
+    }
+
+    char32_t codepoint()
+    {
+      return _codepoint;
+    }
+
+    bool is_valid() const
+    {
+      return _size > 0 && _size < 4;
+    }
+    bool is_unknown() const
+    {
+      // assert(is_valid());
+      return _codepoint;
+    }
+    bool same_as(char32_t c) const
+    {
+      return is_valid() && _codepoint == c;
+    }
+    bool same_as(const code_point_iterator &c) const
+    {
+      return is_valid() && c.is_valid() && c._codepoint == _codepoint;
+    }
+
+   private:
+#ifdef _DEBUG
+    const ustring *_owner;
+#endif
+    const ustring::value_type *_data, *_end, *_start;
+    int32_t _size;  // todo: this can be 1 byte
+    char32_t _codepoint;
+  };
+
+  class grapheme_iterator {
+   public:
+    using iterator_category = std::bidirectional_iterator_tag;
+    using value_type = ustring;
+    using pointer = view *;
+    using const_pointer = const view *;
+    using reference = view &;
+    using const_reference = const view &;
+    using difference_type = ptrdiff_t;
+    using size_type = ustring::size_type;
+
+    grapheme_iterator() = default;
+    explicit grapheme_iterator(const ustring &str,
+                               size_type pos = 0,
+                               const char *locale = nullptr);
+    grapheme_iterator(const grapheme_iterator &);
+    grapheme_iterator(grapheme_iterator &&);
+    grapheme_iterator &operator=(const grapheme_iterator &);
+    grapheme_iterator &operator=(grapheme_iterator &&);
+    ~grapheme_iterator();
+
+    // Basic iterator operations
+    grapheme_iterator &operator++();
+    grapheme_iterator operator++(int);
+    grapheme_iterator &operator--();
+    grapheme_iterator operator--(int);
+    const_reference operator*() const;
+    reference operator*();
+    const_pointer operator->() const;
+    pointer operator->();
+    bool operator==(const grapheme_iterator &) const;
+    bool operator!=(const grapheme_iterator &) const;
+
+    // Additional operations for more functionality
+    grapheme_iterator &operator+=(difference_type n);
+    grapheme_iterator operator+(difference_type n) const;
+    grapheme_iterator &operator-=(difference_type n);
+    grapheme_iterator operator-(difference_type n) const;
+    difference_type operator-(const grapheme_iterator &other) const;
+    std::strong_ordering operator<=>(const grapheme_iterator &) const;
+
+    // Utility functions
+    size_type position() const
+    {
+      return _view.data() - _start;
+    }
+    size_type size() const
+    {
+      return _view.size();
+    }
+    bool is_end() const;
+    bool is_begin() const
+    {
+      return _view.data() == _start;
+    }
+
+    code_point_iterator code_points_begin() const;
+    code_point_iterator code_points_end() const;
+    [[nodiscard]] auto code_points() const noexcept
+    {
+      return std::ranges::subrange<code_point_iterator>(code_points_begin(), code_points_end());
+    }
+
+   private:
+#ifdef _DEBUG
+    const ustring *_owner;
+#endif
+    const ustring::value_type *_start, *_end;
+    view _view;
+    void *_break_iterator;  // UBreakIterator*
+    void *_text;            // UText*
+  };
+
+  class word_iterator {
+   public:
+    using iterator_category = std::bidirectional_iterator_tag;
+    using value_type = ustring;
+    using pointer = view *;
+    using const_pointer = const view *;
+    using reference = view &;
+    using const_reference = const view &;
+    using difference_type = ptrdiff_t;
+
+    word_iterator();
+    explicit word_iterator(const ustring &str,
+                           size_type pos = 0,
+                           const char *locale = nullptr,
+                           WordBreak break_type = WordBreak::UBRK_WORD_NONE);
+    word_iterator(const word_iterator &);
+    word_iterator(word_iterator &&);
+    word_iterator &operator=(const word_iterator &);
+    word_iterator &operator=(word_iterator &&);
+    ~word_iterator();
+
+    word_iterator &operator++();
+    word_iterator operator++(int);
+    word_iterator &operator--();
+    word_iterator operator--(int);
+
+    const_reference operator*() const;
+    reference operator*();
+    const_pointer operator->() const;
+    pointer operator->();
+
+    bool operator==(const word_iterator &) const;
+    bool operator!=(const word_iterator &) const;
+
+    size_type position() const
+    {
+      return _view.data() - _start;
+    }
+    size_type word_size() const
+    {
+      return _view.size();
+    }
+    size_type word_length() const;
+    bool is_end() const;
+
+    grapheme_iterator graphemes_begin() const;
+    grapheme_iterator graphemes_end() const;
+    std::pair<grapheme_iterator, grapheme_iterator> graphemes() const;
+
+    code_point_iterator code_points_begin() const;
+    code_point_iterator code_points_end() const;
+    std::pair<code_point_iterator, code_point_iterator> code_points() const;
+
+   private:
+#ifdef _DEBUG
+    const ustring *_owner;
+#endif
+    const ustring::value_type *_start, *_end;
+    view _view;
+    void *_break_iterator;  // UBreakIterator*
+    void *_text;            // UText*
+  };
+
+  class sentence_iterator {
+   public:
+    using iterator_category = std::bidirectional_iterator_tag;
+    using value_type = ustring;
+    using pointer = view *;
+    using const_pointer = const view *;
+    using reference = view &;
+    using const_reference = const view &;
+    using difference_type = ptrdiff_t;
+    using size_type = ustring::size_type;
+
+    sentence_iterator();
+    explicit sentence_iterator(const ustring &str,
+                               size_type pos = 0,
+                               const char *locale = nullptr);
+    sentence_iterator(const sentence_iterator &);
+    sentence_iterator(sentence_iterator &&);
+    sentence_iterator &operator=(const sentence_iterator &);
+    sentence_iterator &operator=(sentence_iterator &&);
+    ~sentence_iterator();
+
+    // Basic iterator operations
+    sentence_iterator &operator++();
+    sentence_iterator operator++(int);
+    sentence_iterator &operator--();
+    sentence_iterator operator--(int);
+    const_reference operator*() const;
+    reference operator*();
+    const_pointer operator->() const;
+    pointer operator->();
+    bool operator==(const sentence_iterator &) const;
+    bool operator!=(const sentence_iterator &) const;
+
+    // Additional operations for more functionality
+    sentence_iterator &operator+=(difference_type n);
+    sentence_iterator operator+(difference_type n) const;
+    sentence_iterator &operator-=(difference_type n);
+    sentence_iterator operator-(difference_type n) const;
+    difference_type operator-(const sentence_iterator &other) const;
+    std::strong_ordering operator<=>(const sentence_iterator &) const;
+
+    // Utility functions
+    size_type position() const
+    {
+      return _view.data() - _start;
+    }
+    size_type size() const
+    {
+      return _view.size();
+    }
+    bool is_end() const;
+    bool is_begin() const
+    {
+      return _view.data() == _start;
+    }
+
+    word_iterator words_begin() const;
+    word_iterator words_end() const;
+    std::pair<word_iterator, word_iterator> words() const;
+
+    grapheme_iterator graphemes_begin() const;
+    grapheme_iterator graphemes_end() const;
+    [[nodiscard]] auto graphemes() const noexcept
+    {
+      return std::ranges::subrange<grapheme_iterator>(graphemes_begin(), graphemes_end());
+    }
+
+    code_point_iterator code_points_begin() const;
+    code_point_iterator code_points_end() const;
+    [[nodiscard]] auto code_points() const noexcept
+    {
+      return std::ranges::subrange(code_points_begin(), code_points_end());
+    }
+
+   private:
+#ifdef _DEBUG
+    const ustring *_owner;
+#endif
+    const ustring::value_type *_start, *_end;
+    view _view;
+    void *_break_iterator;  // UBreakIterator*
+    void *_text;            // UText*
+  };
 
   static constexpr size_type npos = -1;
   static constexpr size_type max_pos = std::numeric_limits<size_type>::max();
@@ -844,18 +1097,54 @@ class ustring {
   ustring stripped(const value_type *ch = u8" ") const;
   ustring normalized(const NormalizationConfig &config) const;
 
-  // code point iterators
-  [[nodiscard]] inline code_point_iterator code_points_begin() const noexcept
+  // iterators
+  [[nodiscard]] code_point_iterator code_points_begin() const noexcept
   {
     return code_point_iterator(*this);
   }
-  [[nodiscard]] inline code_point_iterator code_points_end() const noexcept
+  [[nodiscard]] code_point_iterator code_points_end() const noexcept
   {
     return code_point_iterator(*this, size());
   }
-  [[nodiscard]] inline auto code_points() const noexcept
+  [[nodiscard]] auto code_points() const noexcept
   {
     return std::ranges::subrange<code_point_iterator>(code_points_begin(), code_points_end());
+  }
+  [[nodiscard]] grapheme_iterator graphemes_begin() const noexcept
+  {
+    return grapheme_iterator(*this);
+  }
+  [[nodiscard]] grapheme_iterator graphemes_end() const noexcept
+  {
+    return grapheme_iterator(*this, size());
+  }
+  [[nodiscard]] auto graphemes() const noexcept
+  {
+    return std::ranges::subrange<grapheme_iterator>(graphemes_begin(), graphemes_end());
+  }
+  [[nodiscard]] word_iterator words_begin() const noexcept
+  {
+    return word_iterator(*this);
+  }
+  [[nodiscard]] word_iterator words_end() const noexcept
+  {
+    return word_iterator(*this, size());
+  }
+  [[nodiscard]] auto words() const noexcept
+  {
+    return std::ranges::subrange<word_iterator>(words_begin(), words_end());
+  }
+  [[nodiscard]] sentence_iterator sentences_begin() const noexcept
+  {
+    return sentence_iterator(*this);
+  }
+  [[nodiscard]] sentence_iterator sentences_end() const noexcept
+  {
+    return sentence_iterator(*this, size());
+  }
+  [[nodiscard]] auto sentences() const noexcept
+  {
+    return std::ranges::subrange<sentence_iterator>(sentences_begin(), sentences_end());
   }
 
   // ranges support
@@ -951,14 +1240,6 @@ class ustring {
   [[nodiscard]] pointer data() noexcept;
   [[nodiscard]] const_pointer data() const noexcept;
 
-  grapheme_iterator graphemes_begin() const;
-  grapheme_iterator graphemes_end() const;
-  std::pair<grapheme_iterator, grapheme_iterator> graphemes() const;
-
-  sentence_iterator sentences_begin() const;
-  sentence_iterator sentences_end() const;
-  std::pair<sentence_iterator, sentence_iterator> sentences() const;
-
  private:
   bool is_using_buffer() const
   {
@@ -984,153 +1265,4 @@ template<> struct std::formatter<ustring> : std::formatter<std::string_view> {
   {
     return formatter<string_view>::format(str.to_string_view(), ctx);
   }
-};
-
-class ustring::word_iterator {
- public:
-  using iterator_category = std::bidirectional_iterator_tag;
-  using value_type = ustring;
-  using pointer = ustring_view *;
-  using const_pointer = const ustring_view *;
-  using reference = ustring_view &;
-  using const_reference = const ustring_view &;
-  using difference_type = ptrdiff_t;
-
-  explicit word_iterator(const ustring &str,
-                         size_type pos = 0,
-                         const char *locale = nullptr,
-                         WordBreak break_type = WordBreak::UBRK_WORD_NONE);
-  word_iterator(const word_iterator &);
-  word_iterator &operator=(const word_iterator &);
-  ~word_iterator();
-
-  word_iterator &operator++();
-  word_iterator operator++(int);
-  word_iterator &operator--();
-  word_iterator operator--(int);
-
-  const_reference operator*() const;
-  reference operator*();
-  const_pointer operator->() const;
-  pointer operator->();
-
-  bool operator==(const word_iterator &) const;
-  bool operator!=(const word_iterator &) const;
-
-  size_type position() const
-  {
-    return _view.data() - _start;
-  }
-  size_type word_size() const
-  {
-    return _view.size();
-  }
-  size_type word_length() const;
-  bool is_end() const;
-
- private:
- private:
-#ifdef _DEBUG
-  const ustring *_owner;
-#endif
-  const ustring::value_type *_start, *_end;
-  ustring_view _view;
-  void *_break_iterator;  // UBreakIterator*
-  void *_text;            // UText*
-};
-
-class ustring::grapheme_iterator {
- public:
-  using iterator_category = std::bidirectional_iterator_tag;
-  using value_type = ustring;
-  using pointer = ustring_view *;
-  using const_pointer = const ustring_view *;
-  using reference = ustring_view &;
-  using const_reference = const ustring_view &;
-  using difference_type = ptrdiff_t;
-
-  explicit grapheme_iterator(const ustring &str, size_type pos = 0, const char *locale = nullptr);
-  grapheme_iterator(const grapheme_iterator &);
-  grapheme_iterator &operator=(const grapheme_iterator &);
-  ~grapheme_iterator();
-
-  grapheme_iterator &operator++();
-  grapheme_iterator operator++(int);
-  grapheme_iterator &operator--();
-  grapheme_iterator operator--(int);
-
-  const_reference operator*() const;
-  reference operator*();
-  const_pointer operator->() const;
-  pointer operator->();
-
-  bool operator==(const grapheme_iterator &) const;
-  bool operator!=(const grapheme_iterator &) const;
-
-  size_type position() const
-  {
-    return _view.data() - _start;
-  }
-  size_type grapheme_size() const
-  {
-    return _view.size();
-  }
-  bool is_end() const;
-
- private:
-#ifdef _DEBUG
-  const ustring *_owner;
-#endif
-  const ustring::value_type *_start, *_end;
-  ustring_view _view;
-  void *_break_iterator;  // UBreakIterator*
-  void *_text;            // UText*
-};
-
-class ustring::sentence_iterator {
- public:
-  using iterator_category = std::bidirectional_iterator_tag;
-  using value_type = ustring;
-  using pointer = ustring_view *;
-  using const_pointer = const ustring_view *;
-  using reference = ustring_view &;
-  using const_reference = const ustring_view &;
-  using difference_type = ptrdiff_t;
-
-  explicit sentence_iterator(const ustring &str, size_type pos = 0, const char *locale = nullptr);
-  sentence_iterator(const sentence_iterator &);
-  sentence_iterator &operator=(const sentence_iterator &);
-  ~sentence_iterator();
-
-  sentence_iterator &operator++();
-  sentence_iterator operator++(int);
-  sentence_iterator &operator--();
-  sentence_iterator operator--(int);
-
-  const_reference operator*() const;
-  reference operator*();
-  const_pointer operator->() const;
-  pointer operator->();
-
-  bool operator==(const sentence_iterator &) const;
-  bool operator!=(const sentence_iterator &) const;
-
-  size_type position() const
-  {
-    return _view.data() - _start;
-  }
-  size_type sentence_size() const
-  {
-    return _view.size();
-  }
-  bool is_end() const;
-
- private:
-#ifdef _DEBUG
-  const ustring *_owner;
-#endif
-  const ustring::value_type *_start, *_end;
-  ustring_view _view;
-  void *_break_iterator;  // UBreakIterator*
-  void *_text;            // UText*
 };

@@ -3286,16 +3286,6 @@ std::vector<ustring::view> ustring::split_words(const char *locale) const
   return to_view().split_words(locale);
 }
 
-ustring::word_iterator ustring::words_begin() const
-{
-  return word_iterator(*this, 0);
-}
-
-ustring::word_iterator ustring::words_end() const
-{
-  return word_iterator(*this, size());
-}
-
 ustring::code_point_iterator::code_point_iterator() : _data{nullptr}, _size{0}, _codepoint{0} {}
 
 ustring::code_point_iterator::code_point_iterator(const ustring &str, size_type pos)
@@ -3715,23 +3705,6 @@ bool ustring::grapheme_iterator::is_end() const
   assert(_view.data() <= _end);
   return _view.data() == _end;
 }
-
-// Helper functions implementation
-ustring::grapheme_iterator ustring::graphemes_begin() const
-{
-  return grapheme_iterator(*this, 0);
-}
-
-ustring::grapheme_iterator ustring::graphemes_end() const
-{
-  return grapheme_iterator(*this, size());
-}
-
-std::pair<ustring::grapheme_iterator, ustring::grapheme_iterator> ustring::graphemes() const
-{
-  return {graphemes_begin(), graphemes_end()};
-}
-
 ustring::word_iterator::word_iterator(const ustring &str,
                                       size_type pos,
                                       const char *locale,
@@ -4280,19 +4253,4 @@ bool ustring::sentence_iterator::is_end() const
 {
   assert(_view.data() <= _end);
   return _view.data() == _end;
-}
-
-ustring::sentence_iterator ustring::sentences_begin() const
-{
-  return sentence_iterator(*this, 0);
-}
-
-ustring::sentence_iterator ustring::sentences_end() const
-{
-  return sentence_iterator(*this, size());
-}
-
-std::pair<ustring::sentence_iterator, ustring::sentence_iterator> ustring::sentences() const
-{
-  return {sentences_begin(), sentences_end()};
 }
