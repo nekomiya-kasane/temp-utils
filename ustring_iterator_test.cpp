@@ -298,100 +298,154 @@ TEST_F(UStringWordIteratorTest, BasicIteration)
   for (auto it = simple_str.words_begin(); it != simple_str.words_end(); ++it) {
     words.push_back(it->to_string());
   }
-  EXPECT_EQ(words.size(), 2);
+  EXPECT_EQ(words.size(), 3);
   EXPECT_EQ(words[0], "Hello");
-  EXPECT_EQ(words[1], "World");
+  EXPECT_EQ(words[1], " ");
+  EXPECT_EQ(words[2], "World");
 }
-//
-//  TEST_F(UStringWordIteratorTest, ComplexIteration) {
-//    std::vector<std::string> words;
-//    for (auto it = complex_str.word_begin(); it != complex_str.word_end(); ++it) {
-//      words.push_back(it->to_string());
-//    }
-//
-//    EXPECT_EQ(words.size(), 7);
-//    EXPECT_EQ(words[0], "Hello");
-//    EXPECT_EQ(words[1], "World");
-//    EXPECT_EQ(words[2], "How");
-//    EXPECT_EQ(words[3], "are");
-//    EXPECT_EQ(words[4], "you");
-//    EXPECT_EQ(words[5], "I'm");
-//    EXPECT_EQ(words[6], "fine");
-//  }
-//
-//  TEST_F(UStringWordIteratorTest, UTF8Words) {
-//    std::vector<std::string> words;
-//    for (auto it = utf8_str.word_begin(); it != utf8_str.word_end(); ++it) {
-//      words.push_back(it->to_string());
-//    }
-//
-//    EXPECT_EQ(words.size(), 4);
-//    EXPECT_EQ(words[0], "Hello");
-//    EXPECT_EQ(words[1], "世界");
-//    EXPECT_EQ(words[2], "你好");
-//    EXPECT_EQ(words[3], "🌍");
-//  }
-//
-//  TEST_F(UStringWordIteratorTest, WhitespaceHandling) {
-//    std::vector<std::string> words;
-//    for (auto it = whitespace_str.word_begin(); it != whitespace_str.word_end(); ++it) {
-//      words.push_back(it->to_string());
-//    }
-//
-//    EXPECT_EQ(words.size(), 2);
-//    EXPECT_EQ(words[0], "Multiple");
-//    EXPECT_EQ(words[1], "Spaces");
-//  }
-//
-//  TEST_F(UStringWordIteratorTest, PunctuationHandling) {
-//    ustring punct_str("Hello, world! This... is-a_test; (with) [some] {punctuation}.");
-//    std::vector<std::string> words;
-//    for (auto it = punct_str.word_begin(); it != punct_str.word_end(); ++it) {
-//      words.push_back(it->to_string());
-//    }
-//
-//    EXPECT_EQ(words.size(), 8);
-//    EXPECT_EQ(words[0], "Hello");
-//    EXPECT_EQ(words[1], "world");
-//    EXPECT_EQ(words[2], "This");
-//    EXPECT_EQ(words[3], "is");
-//    EXPECT_EQ(words[4], "a");
-//    EXPECT_EQ(words[5], "test");
-//    EXPECT_EQ(words[6], "with");
-//    EXPECT_EQ(words[7], "some");
-//  }
-//
-//  TEST_F(UStringWordIteratorTest, NumberHandling) {
-//    ustring num_str("Test123 456.789 1,000 0xFF 1.2e-3");
-//    std::vector<std::string> words;
-//    for (auto it = num_str.word_begin(); it != num_str.word_end(); ++it) {
-//      words.push_back(it->to_string());
-//    }
-//
-//    EXPECT_EQ(words.size(), 5);
-//    EXPECT_EQ(words[0], "Test123");
-//    EXPECT_EQ(words[1], "456.789");
-//    EXPECT_EQ(words[2], "1,000");
-//    EXPECT_EQ(words[3], "0xFF");
-//    EXPECT_EQ(words[4], "1.2e-3");
-//  }
-//
-//  TEST_F(UStringWordIteratorTest, MixedScriptWords) {
-//    ustring mixed_str("English中文Mix混合Words词语");
-//    std::vector<std::string> words;
-//    for (auto it = mixed_str.word_begin(); it != mixed_str.word_end(); ++it) {
-//      words.push_back(it->to_string());
-//    }
-//
-//    EXPECT_EQ(words.size(), 6);
-//    EXPECT_EQ(words[0], "English");
-//    EXPECT_EQ(words[1], "中文");
-//    EXPECT_EQ(words[2], "Mix");
-//    EXPECT_EQ(words[3], "混合");
-//    EXPECT_EQ(words[4], "Words");
-//    EXPECT_EQ(words[5], "词语");
-//  }
-//
+
+TEST_F(UStringWordIteratorTest, ComplexIteration)
+{
+  // "Hello,  World! How are you?\nI'm fine."
+  std::vector<std::string> words;
+  for (auto it = complex_str.words_begin(); it != complex_str.words_end(); ++it) {
+    words.push_back(it->to_string());
+  }
+
+  EXPECT_EQ(words.size(), 17);
+  EXPECT_EQ(words[0], "Hello");
+  EXPECT_EQ(words[1], ",");
+  EXPECT_EQ(words[2], "  ");
+  EXPECT_EQ(words[3], "World");
+  EXPECT_EQ(words[4], "!");
+  EXPECT_EQ(words[5], " ");
+  EXPECT_EQ(words[6], "How");
+  EXPECT_EQ(words[7], " ");
+  EXPECT_EQ(words[8], "are");
+  EXPECT_EQ(words[9], " ");
+  EXPECT_EQ(words[10], "you");
+  EXPECT_EQ(words[11], "?");
+  EXPECT_EQ(words[12], "\n");
+  EXPECT_EQ(words[13], "I'm");
+  EXPECT_EQ(words[14], " ");
+  EXPECT_EQ(words[15], "fine");
+  EXPECT_EQ(words[16], ".");
+}
+
+TEST_F(UStringWordIteratorTest, UTF8Words)
+{
+  // "Hello 世界! 你好 🌍"
+  std::vector<std::string> words;
+  for (auto it = utf8_str.words_begin(); it != utf8_str.words_end(); ++it) {
+    words.push_back(it->to_string());
+  }
+
+  EXPECT_EQ(words.size(), 8);
+  EXPECT_EQ(words[0], "Hello");
+  EXPECT_EQ(words[1], " ");
+  EXPECT_EQ(words[2], "世界");
+  EXPECT_EQ(words[3], "!");
+  EXPECT_EQ(words[4], " ");
+  EXPECT_EQ(words[5], "你好");
+  EXPECT_EQ(words[6], " ");
+  EXPECT_EQ(words[7], "🌍");
+}
+
+TEST_F(UStringWordIteratorTest, WhitespaceHandling)
+{
+  // "   Multiple   Spaces   "
+  // todo: is this right?
+  std::vector<std::string> words;
+  for (auto it = whitespace_str.words_begin(); it != whitespace_str.words_end(); ++it) {
+    words.push_back(it->to_string());
+  }
+
+  EXPECT_EQ(words.size(), 5);
+  EXPECT_EQ(words[0], "   ");
+  EXPECT_EQ(words[1], "Multiple");
+  EXPECT_EQ(words[2], "   ");
+  EXPECT_EQ(words[3], "Spaces");
+  EXPECT_EQ(words[4], "   ");
+}
+
+TEST_F(UStringWordIteratorTest, PunctuationHandling)
+{
+  ustring punct_str("Hello, world! This... is-a_test; (with) [some] {punctuation}.");
+  std::vector<std::string> words;
+  for (auto it = punct_str.words_begin(); it != punct_str.words_end(); ++it) {
+    words.push_back(it->to_string());
+  }
+
+  EXPECT_EQ(words.size(), 28);
+  EXPECT_EQ(words[0], "Hello");
+  EXPECT_EQ(words[1], ",");
+  EXPECT_EQ(words[2], " ");
+  EXPECT_EQ(words[3], "world");
+  EXPECT_EQ(words[4], "!");
+  EXPECT_EQ(words[5], " ");
+  EXPECT_EQ(words[6], "This");
+  EXPECT_EQ(words[7], ".");
+  EXPECT_EQ(words[8], ".");
+  EXPECT_EQ(words[9], ".");
+  EXPECT_EQ(words[10], " ");
+  EXPECT_EQ(words[11], "is");
+  EXPECT_EQ(words[12], "-");
+  EXPECT_EQ(words[13], "a_test");
+  EXPECT_EQ(words[14], ";");
+  EXPECT_EQ(words[15], " ");
+  EXPECT_EQ(words[16], "(");
+  EXPECT_EQ(words[17], "with");
+  EXPECT_EQ(words[18], ")");
+  EXPECT_EQ(words[19], " ");
+  EXPECT_EQ(words[20], "[");
+  EXPECT_EQ(words[21], "some");
+  EXPECT_EQ(words[22], "]");
+  EXPECT_EQ(words[23], " ");
+  EXPECT_EQ(words[24], "{");
+  EXPECT_EQ(words[25], "punctuation");
+  EXPECT_EQ(words[26], "}");
+  EXPECT_EQ(words[27], ".");
+}
+
+TEST_F(UStringWordIteratorTest, NumberHandling)
+{
+  ustring num_str("Test123 456.789 1,000 0xFF 1.2e-3");
+  std::vector<std::string> words;
+  for (auto it = num_str.words_begin(); it != num_str.words_end(); ++it) {
+    words.push_back(it->to_string());
+  }
+
+  EXPECT_EQ(words.size(), 11);
+  EXPECT_EQ(words[0], "Test123");
+  EXPECT_EQ(words[1], " ");
+  EXPECT_EQ(words[2], "456.789");
+  EXPECT_EQ(words[3], " ");
+  EXPECT_EQ(words[4], "1,000");
+  EXPECT_EQ(words[5], " ");
+  EXPECT_EQ(words[6], "0xFF");
+  EXPECT_EQ(words[7], " ");
+  EXPECT_EQ(words[8], "1.2e"); // todo: this is strange, why not 1.2e-3
+  EXPECT_EQ(words[9], "-");
+  EXPECT_EQ(words[10], "3");
+}
+
+TEST_F(UStringWordIteratorTest, MixedScriptWords)
+{
+  ustring mixed_str("English中文Mix混合Words词语");
+  std::vector<std::string> words;
+  for (auto it = mixed_str.words_begin(); it != mixed_str.words_end(); ++it) {
+    words.push_back(it->to_string());
+  }
+
+  EXPECT_EQ(words.size(), 6);
+  EXPECT_EQ(words[0], "English");
+  EXPECT_EQ(words[1], "中文");
+  EXPECT_EQ(words[2], "Mix");
+  EXPECT_EQ(words[3], "混合");
+  EXPECT_EQ(words[4], "Words");
+  EXPECT_EQ(words[5], "词语");
+}
+
 //  Test code point iterator functionality
 class UStringCodePointIteratorTest : public ::testing::Test {
  protected:

@@ -3612,20 +3612,15 @@ ustring::word_iterator &ustring::word_iterator::operator++()
   }
 
   auto break_it = static_cast<UBreakIterator *>(_break_iterator);
-  int32_t next = ubrk_next(break_it);
-  if (next == UBRK_DONE) {
-    _view = {_end, _view.size()};
-    return *this;
-  }
 
-  int32_t curr_pos = next;
-  next = ubrk_next(break_it);
+  int32_t curr_pos = _view.data() - _start + _view.size();
+  int32_t next = ubrk_next(break_it);
   if (next != UBRK_DONE) {
     _view = {_start + curr_pos, static_cast<int>(next - curr_pos)};
-    ubrk_previous(break_it);  // Restore iterator position
+    //ubrk_previous(break_it);  // Restore iterator position
   }
   else {
-    _view = {_end, _view.size()};
+    _view = {_end, 0};
   }
 
   return *this;
