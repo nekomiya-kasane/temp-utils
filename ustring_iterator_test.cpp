@@ -286,22 +286,22 @@ class UStringWordIteratorTest : public ::testing::Test {
   ustring whitespace_str;
 };
 
-// TEST_F(UStringWordIteratorTest, BasicIteration)
-//{
-//   // Empty string
-//   auto empty_begin = empty_str.words_begin();
-//   auto empty_end = empty_str.words_end();
-//   EXPECT_EQ(empty_begin, empty_end);
-//
-//   // Simple string
-//   std::vector<std::string> words;
-//   for (auto it = simple_str.words_begin(); it != simple_str.words_end(); ++it) {
-//     words.push_back(it->to_string());
-//   }
-//   EXPECT_EQ(words.size(), 2);
-//   EXPECT_EQ(words[0], "Hello");
-//   EXPECT_EQ(words[1], "World");
-// }
+TEST_F(UStringWordIteratorTest, BasicIteration)
+{
+  // Empty string
+  auto empty_begin = empty_str.words_begin();
+  auto empty_end = empty_str.words_end();
+  EXPECT_EQ(empty_begin, empty_end);
+
+  // Simple string
+  std::vector<std::string> words;
+  for (auto it = simple_str.words_begin(); it != simple_str.words_end(); ++it) {
+    words.push_back(it->to_string());
+  }
+  EXPECT_EQ(words.size(), 2);
+  EXPECT_EQ(words[0], "Hello");
+  EXPECT_EQ(words[1], "World");
+}
 //
 //  TEST_F(UStringWordIteratorTest, ComplexIteration) {
 //    std::vector<std::string> words;

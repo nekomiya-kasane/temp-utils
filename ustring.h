@@ -421,9 +421,9 @@ class ustring {
     }
 
     [[nodiscard]] std::string to_string() const;
-    [[nodiscard]] std::string_view to_string_view() const;
+    [[nodiscard]] std::string_view to_string_view() const &;
     [[nodiscard]] std::u8string to_u8string() const;
-    [[nodiscard]] std::u8string_view to_u8string_view() const;
+    [[nodiscard]] std::u8string_view to_u8string_view() const &;
     [[nodiscard]] std::u16string to_u16string() const;
     [[nodiscard]] std::u32string to_u32string() const;
     [[nodiscard]] std::wstring to_wstring() const;
@@ -603,13 +603,13 @@ class ustring {
   ustring &from_utf16(const char16_t *str, size_t size);
   ustring &from_utf32(const char32_t *str, size_t size);
 
-  [[nodiscard]] view to_view() const;
-  [[nodiscard]] view to_view(size_type left) const;
-  [[nodiscard]] view to_view(size_type left, size_type size) const;
+  [[nodiscard]] view to_view() const &;
+  [[nodiscard]] view to_view(size_type left) const &;
+  [[nodiscard]] view to_view(size_type left, size_type size) const &;
   [[nodiscard]] std::string to_string() const;
-  [[nodiscard]] std::string_view to_string_view() const;
+  [[nodiscard]] std::string_view to_string_view() const &;
   [[nodiscard]] std::u8string to_u8string() const;
-  [[nodiscard]] std::u8string_view to_u8string_view() const;
+  [[nodiscard]] std::u8string_view to_u8string_view() const &;
   [[nodiscard]] std::u16string to_u16string() const;
   [[nodiscard]] std::u32string to_u32string() const;
   [[nodiscard]] std::wstring to_wstring() const;
@@ -976,12 +976,15 @@ template<> struct std::formatter<ustring> : std::formatter<std::string_view> {
   }
 };
 
+// todo: add start and end
 class ustring::word_iterator {
  public:
   using iterator_category = std::bidirectional_iterator_tag;
   using value_type = ustring;
-  using pointer = const ustring *;
-  using reference = const ustring &;
+  using pointer = ustring_view *;
+  using const_pointer = const ustring_view *;
+  using reference = ustring_view&;
+  using const_reference = const ustring_view&;
   using difference_type = ptrdiff_t;
 
   explicit word_iterator(const ustring &str,
@@ -990,39 +993,39 @@ class ustring::word_iterator {
                          WordBreak break_type = WordBreak::UBRK_WORD_NONE);
   word_iterator(const word_iterator &);
   word_iterator &operator=(const word_iterator &);
+  ~word_iterator();
 
   word_iterator &operator++();
   word_iterator operator++(int);
   word_iterator &operator--();
   word_iterator operator--(int);
 
-  reference operator*() const;
-  pointer operator->() const;
+  const_reference operator*() const;
+  reference operator*();
+  const_pointer operator->() const;
+  pointer operator->();
 
   bool operator==(const word_iterator &) const;
   bool operator!=(const word_iterator &) const;
 
   size_type position() const
   {
-    return _pos;
+    return _view.data() - _start;
   }
   size_type word_size() const
   {
-    return _word_size;
+    return _view.size();
   }
-  size_type word_length() const
-  {
-    return _word_length;
-  }
-
-  bool is_end() const
-  {
-    return _pos == ustring::npos || (_pos >= _str->size());
-  }
+  size_type word_length() const;
+  bool is_end() const;
 
  private:
-  const ustring *_str;
-  size_type _pos;
-  size_type _word_size, _word_length;
-  void *_break_iterator;  // UBreakIterator
+ private:
+#ifdef _DEBUG
+  const ustring *_owner;
+#endif
+  const ustring::value_type *_start, *_end;
+  ustring_view _view;
+  void *_break_iterator;  // UBreakIterator*
+  void *_text;            // UText*
 };

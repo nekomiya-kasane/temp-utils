@@ -48,3 +48,15 @@ target_link_libraries(ustring_test
 )
 
 gtest_discover_tests(ustring_test)
+
+add_executable(small_vector_test
+    small_vector_test.cpp
+)
+
+target_link_libraries(small_vector_test
+    PRIVATE
+    GTest::gtest
+    GTest::gtest_main
+)
+
+gtest_discover_tests(small_vector_test)
