@@ -487,6 +487,7 @@ class ustring {
     using difference_type = ustring::difference_type;
 
     code_point_iterator();
+    code_point_iterator(const view &str, size_type pos = 0);
     code_point_iterator(const ustring &str, size_type pos = 0);
     code_point_iterator(const code_point_iterator &);
     code_point_iterator(code_point_iterator &&) noexcept;
@@ -512,11 +513,6 @@ class ustring {
 
     difference_type operator-(const code_point_iterator &other) const
     {
-#ifdef _DEBUG
-      if (other._owner != _owner) {
-        throw std::runtime_error("Iterators from different strings");
-      }
-#endif
       return static_cast<difference_type>(_data - other._data);
     }
 
@@ -526,11 +522,6 @@ class ustring {
     }
     std::strong_ordering operator<=>(const code_point_iterator &other) const
     {
-#ifdef _DEBUG
-      if (other._owner != _owner) {
-        throw "";
-      }
-#endif
       return _data <=> other._data;
     }
 
@@ -563,9 +554,6 @@ class ustring {
     }
 
    private:
-#ifdef _DEBUG
-    const ustring *_owner;
-#endif
     const ustring::value_type *_data, *_end, *_start;
     int32_t _size;  // todo: this can be 1 byte
     char32_t _codepoint;
@@ -582,7 +570,8 @@ class ustring {
     using difference_type = ptrdiff_t;
     using size_type = ustring::size_type;
 
-    grapheme_iterator() = default;
+    grapheme_iterator();
+    explicit grapheme_iterator(const view &str, size_type pos = 0, const char *locale = nullptr);
     explicit grapheme_iterator(const ustring &str,
                                size_type pos = 0,
                                const char *locale = nullptr);
@@ -635,9 +624,6 @@ class ustring {
     }
 
    private:
-#ifdef _DEBUG
-    const ustring *_owner;
-#endif
     const ustring::value_type *_start, *_end;
     view _view;
     void *_break_iterator;  // UBreakIterator*
@@ -655,6 +641,10 @@ class ustring {
     using difference_type = ptrdiff_t;
 
     word_iterator();
+    explicit word_iterator(const view &str,
+                           size_type pos = 0,
+                           const char *locale = nullptr,
+                           WordBreak break_type = WordBreak::UBRK_WORD_NONE);
     explicit word_iterator(const ustring &str,
                            size_type pos = 0,
                            const char *locale = nullptr,
@@ -678,6 +668,14 @@ class ustring {
     bool operator==(const word_iterator &) const;
     bool operator!=(const word_iterator &) const;
 
+    // Additional operations for more functionality
+    word_iterator &operator+=(difference_type n);
+    word_iterator operator+(difference_type n) const;
+    word_iterator &operator-=(difference_type n);
+    word_iterator operator-(difference_type n) const;
+    difference_type operator-(const word_iterator &other) const;
+    std::strong_ordering operator<=>(const word_iterator &) const;
+
     size_type position() const
     {
       return _view.data() - _start;
@@ -698,9 +696,6 @@ class ustring {
     std::pair<code_point_iterator, code_point_iterator> code_points() const;
 
    private:
-#ifdef _DEBUG
-    const ustring *_owner;
-#endif
     const ustring::value_type *_start, *_end;
     view _view;
     void *_break_iterator;  // UBreakIterator*
@@ -719,6 +714,7 @@ class ustring {
     using size_type = ustring::size_type;
 
     sentence_iterator();
+    explicit sentence_iterator(const view &str, size_type pos = 0, const char *locale = nullptr);
     explicit sentence_iterator(const ustring &str,
                                size_type pos = 0,
                                const char *locale = nullptr);
@@ -782,9 +778,6 @@ class ustring {
     }
 
    private:
-#ifdef _DEBUG
-    const ustring *_owner;
-#endif
     const ustring::value_type *_start, *_end;
     view _view;
     void *_break_iterator;  // UBreakIterator*
