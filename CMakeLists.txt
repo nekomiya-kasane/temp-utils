@@ -29,6 +29,7 @@ add_library(ustring
     ustring.cpp
     ustring.h
     ustring.natvis
+    small_vector.h
 )
 
 add_executable(ustring_test
