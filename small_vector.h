@@ -52,8 +52,6 @@ struct svector_storage {
   
 };
 
-std::vector<int> s;
-
 template<typename T, size_t N = 0, typename Allocator = std::allocator<T>> class small_vector {
  public:
   constexpr size_t buffer_size = N;
