@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.28)
 
 project ("ustring")
 
-include(D:/scoop/apps/vcpkg/2024.12.16/scripts/buildsystems/vcpkg.cmake)
+include(C:/Users/nekom/scoop/apps/vcpkg/2024.12.16/scripts/buildsystems/vcpkg.cmake)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
