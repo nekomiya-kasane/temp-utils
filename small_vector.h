@@ -390,7 +390,7 @@ template<typename T, size_t InlineCapacity = 16> class small_vector {
   template<typename... Args> constexpr reference emplace_back(Args &&...args)
   {
     if (_size == capacity()) {
-      reserve(_size * 3 / 2);
+      reserve(_size > 1 ? _size * 3 / 2 : _size + 1);
     }
     std::construct_at(data() + _size, std::forward<Args>(args)...);
     return data()[_size++];

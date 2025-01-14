@@ -86,3 +86,13 @@ target_link_libraries(small_vector_test
 )
 
 gtest_discover_tests(small_vector_test)
+
+add_executable(small_vector_benchmark
+    small_vector.h
+    small_vector_benchmark.cpp
+)
+
+target_link_libraries(small_vector_benchmark
+    PRIVATE
+    benchmark::benchmark
+)
