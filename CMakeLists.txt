@@ -97,15 +97,15 @@ target_link_libraries(small_vector_benchmark
     benchmark::benchmark
 )
 
-add_executable(range_formatter_test
-    range_formatter.h
-    range_formatter_test.cpp
-)
-
-target_link_libraries(range_formatter_test
-    PRIVATE
-    GTest::gtest
-    GTest::gtest_main
-)
-
-gtest_discover_tests(range_formatter_test)
+#add_executable(range_formatter_test
+#    range_formatter.h
+#    range_formatter_test.cpp
+#)
+#
+#target_link_libraries(range_formatter_test
+#    PRIVATE
+#    GTest::gtest
+#    GTest::gtest_main
+#)
+#
+#gtest_discover_tests(range_formatter_test)

@@ -9,13 +9,15 @@
 #include "basic_concepts.h"
 
 struct format_options {
-  std::string_view prefix = "[";        
-  std::string_view suffix = "]";        
-  std::string_view separator = ", ";    
-  std::string_view empty_range = "[]";  
+  std::string_view prefix = "[";
+  std::string_view suffix = "]";
+  std::string_view separator = ", ";
+  std::string_view empty_range = "[]";
 };
 
-template<typename Range> class range_formatter {
+template<typename Range, typename CharT>
+  requires traits::is_ranged<Range>
+class std::formatter<Range, CharT> {
  public:
   constexpr auto parse(std::format_parse_context &ctx)
   {
@@ -50,7 +52,7 @@ template<typename Range> class range_formatter {
             }
           }
           break;
-        case 's': 
+        case 's':
           ++it;
           if (it != end) {
             switch (*it) {
@@ -72,7 +74,7 @@ template<typename Range> class range_formatter {
             }
           }
           break;
-        case 'e': 
+        case 'e':
           ++it;
           if (it != end) {
             switch (*it) {
@@ -91,6 +93,7 @@ template<typename Range> class range_formatter {
             }
           }
           break;
+        default: ;
       }
       ++it;
     }
@@ -148,65 +151,64 @@ template<typename Range> class range_formatter {
 };
 //
 //// 特化 std::formatter 为我们的 range_formatter
-//template<typename T>
-//  requires std::ranges::range<T>
-//struct std::formatter<T> : ustd::range_formatter<T> {};
+// template<typename T>
+//   requires std::ranges::range<T>
+// struct std::formatter<T> : ustd::range_formatter<T> {};
 //
 //// 为 small_vector 特化 formatter
-//template<typename T, size_t N, typename Alloc>
-//struct std::formatter<small_vector<T, N, Alloc>>
-//    : ustd::range_formatter<ustd::small_vector<T, N, Alloc>> {
+// template<typename T, size_t N, typename Alloc>
+// struct std::formatter<small_vector<T, N, Alloc>>
+//     : ustd::range_formatter<ustd::small_vector<T, N, Alloc>> {
 //
-//  // 添加特定于 small_vector 的格式化选项
-//  constexpr auto parse(std::format_parse_context &ctx)
-//  {
-//    auto it = ctx.begin();
-//    auto end = ctx.end();
+//   // 添加特定于 small_vector 的格式化选项
+//   constexpr auto parse(std::format_parse_context &ctx)
+//   {
+//     auto it = ctx.begin();
+//     auto end = ctx.end();
 //
-//    // 首先调用基类的解析
-//    it = ustd::range_formatter<ustd::small_vector<T, N, Alloc>>::parse(ctx);
+//     // 首先调用基类的解析
+//     it = ustd::range_formatter<ustd::small_vector<T, N, Alloc>>::parse(ctx);
 //
-//    // 解析 small_vector 特定的格式选项
-//    while (it != end && *it != '}') {
-//      switch (*it) {
-//        case 'i':  // 显示内联存储信息
-//          ++it;
-//          show_inline_info = true;
-//          break;
-//        case 'c':  // 显示容量信息
-//          ++it;
-//          show_capacity = true;
-//          break;
-//      }
-//      if (it != end)
-//        ++it;
-//    }
-//    return it;
-//  }
+//     // 解析 small_vector 特定的格式选项
+//     while (it != end && *it != '}') {
+//       switch (*it) {
+//         case 'i':  // 显示内联存储信息
+//           ++it;
+//           show_inline_info = true;
+//           break;
+//         case 'c':  // 显示容量信息
+//           ++it;
+//           show_capacity = true;
+//           break;
+//       }
+//       if (it != end)
+//         ++it;
+//     }
+//     return it;
+//   }
 //
-//  template<typename FormatContext>
-//  auto format(const ustd::small_vector<T, N, Alloc> &vec, FormatContext &ctx) const
-//  {
-//    auto out = ctx.out();
+//   template<typename FormatContext>
+//   auto format(const ustd::small_vector<T, N, Alloc> &vec, FormatContext &ctx) const
+//   {
+//     auto out = ctx.out();
 //
-//    // 如果需要显示额外信息，添加前缀
-//    if (show_inline_info || show_capacity) {
-//      out = std::format_to(out, "small_vector(");
-//      if (show_inline_info) {
-//        out = std::format_to(out, "inline={},", vec.is_using_inline_storage());
-//      }
-//      if (show_capacity) {
-//        out = std::format_to(out, "cap={},", vec.capacity());
-//      }
-//      out = std::format_to(out, "size={})", vec.size());
-//    }
+//     // 如果需要显示额外信息，添加前缀
+//     if (show_inline_info || show_capacity) {
+//       out = std::format_to(out, "small_vector(");
+//       if (show_inline_info) {
+//         out = std::format_to(out, "inline={},", vec.is_using_inline_storage());
+//       }
+//       if (show_capacity) {
+//         out = std::format_to(out, "cap={},", vec.capacity());
+//       }
+//       out = std::format_to(out, "size={})", vec.size());
+//     }
 //
-//    // 调用基类的格式化
-//    return ustd::range_formatter<ustd::small_vector<T, N, Alloc>>::format(vec, ctx);
-//  }
+//     // 调用基类的格式化
+//     return ustd::range_formatter<ustd::small_vector<T, N, Alloc>>::format(vec, ctx);
+//   }
 //
-// private:
-//  bool show_inline_info = false;
-//  bool show_capacity = false;
-//};
-
+//  private:
+//   bool show_inline_info = false;
+//   bool show_capacity = false;
+// };
