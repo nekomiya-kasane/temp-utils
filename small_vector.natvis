@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="small_vector&lt;*,*&gt;">
+    <DisplayString>{{ size={_size}, capacity={_storage._capacity / sizeof($T1)} }}</DisplayString>
+    <Expand>
+      <Item Name="[size]">_size</Item>
+      <Item Name="[capacity]">_storage._capacity / sizeof($T1)</Item>
+      <Item Name="[using_buffer]">_storage._using_buffer</Item>
+      <ArrayItems>
+        <Size>_size</Size>
+        <ValuePointer Condition="_storage._using_buffer">reinterpret_cast&lt;$T1*&gt;(_storage._buffer)</ValuePointer>
+        <ValuePointer Condition="!_storage._using_buffer">reinterpret_cast&lt;$T1*&gt;(_storage._data)</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+</AutoVisualizer>

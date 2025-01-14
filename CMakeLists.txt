@@ -30,7 +30,6 @@ add_library(ustring
     ustring.cpp
     ustring.h
     ustring.natvis
-    small_vector.h
     inline_first_storage.h
     signal.h
 )
@@ -76,7 +75,8 @@ target_link_libraries(inline_first_storage_benchmark
 gtest_discover_tests(inline_first_storage_test)
 
 add_executable(small_vector_test
-    small_vector_test.cpp
+    small_vector.h
+    small_vector_tests.cpp
 )
 
 target_link_libraries(small_vector_test

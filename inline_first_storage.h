@@ -318,14 +318,4 @@ template<size_t Capacity = 16> class inline_first_storage {
     bool _using_buffer : 1;
     size_type _capacity : sizeof(size_type) * 8 - 1;
   };
-
-  size_type growth_capacity(size_type required_capacity) const
-  {
-    const size_type ms = max_capacity();
-    if (required_capacity > ms) {
-      throw std::length_error("inline_first_storage growth capacity overflow");
-    }
-    const size_type new_capacity = std::max(required_capacity, _capacity * 2);
-    return std::min(new_capacity, ms);
-  }
 };
