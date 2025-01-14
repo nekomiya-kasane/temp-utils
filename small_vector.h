@@ -9,7 +9,9 @@
 #include <memory>
 #include <ranges>
 #include <stdexcept>
+#include <string>
 #include <type_traits>
+#include <format>
 
 template<typename T, size_t InlineCapacity = 16> class small_vector {
  public:
@@ -442,4 +444,38 @@ template<typename T, size_t InlineCapacity = 16> class small_vector {
  private:
   inline_first_storage<InlineCapacity * sizeof(T)> _storage;
   size_type _size{0};
+};
+
+template<typename T, size_t InlineCapacity>
+std::string to_string(const small_vector<T, InlineCapacity>& v) {
+  if (v.empty()) {
+    return "[]";
+  }
+
+  std::string result = "[";
+  for (size_t i = 0; i < v.size(); ++i) {
+    if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, char*> || std::is_same_v<T, const char*>) {
+      result += std::format("\"{}\"", v[i]);
+    } else if constexpr (std::is_arithmetic_v<T>) {
+      result += std::format("{}", v[i]);
+    } else if constexpr (requires { std::format("{}", std::declval<T>()); }) {
+      result += std::format("{}", v[i]);
+    } else {
+      result += "<unprintable>";
+    }
+    
+    if (i < v.size() - 1) {
+      result += ", ";
+    }
+  }
+  result += "]";
+  return result;
+}
+
+// Formatter specialization for small_vector
+template<typename T, size_t N>
+struct std::formatter<small_vector<T, N>> : std::formatter<std::string> {
+  auto format(const small_vector<T, N>& v, format_context& ctx) const {
+    return formatter<string>::format(to_string(v), ctx);
+  }
 };

@@ -9,6 +9,9 @@
 #include <stdexcept>
 #include <utility>
 #include <vector>
+#include <string>
+#include <format>
+#include <sstream>
 
 template<size_t Capacity = 16> class inline_first_storage {
  public:
@@ -318,4 +321,28 @@ template<size_t Capacity = 16> class inline_first_storage {
     bool _using_buffer : 1;
     size_type _capacity : sizeof(size_type) * 8 - 1;
   };
+};
+
+template<size_t InlineCapacity>
+std::string to_string(const inline_first_storage<InlineCapacity>& storage) {
+  std::string data_str = "[";
+  const uint8_t* data = storage.data();
+  for (size_t i = 0; i < storage.size(); ++i) {
+    data_str += std::format("{}", static_cast<int>(data[i]));
+    if (i < storage.size() - 1) {
+      data_str += ", ";
+    }
+  }
+  data_str += "]";
+  
+  return std::format("inline_first_storage{{size={}, capacity={}, data={}}}", 
+                    storage.size(), storage.capacity(), data_str);
+}
+
+// Formatter specialization for inline_first_storage
+template<size_t N>
+struct std::formatter<inline_first_storage<N>> : std::formatter<std::string> {
+  auto format(const inline_first_storage<N>& storage, format_context& ctx) const {
+    return formatter<string>::format(to_string(storage), ctx);
+  }
 };

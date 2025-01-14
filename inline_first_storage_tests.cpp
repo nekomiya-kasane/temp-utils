@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 #include <string>
 #include <vector>
+#include <format>
 
 TEST(InlineFirstStorageTest, DefaultConstruction)
 {
@@ -385,4 +386,37 @@ TEST(InlineFirstStorageTest, ResetOperation)
   storage.reset(another_data, 5);
   EXPECT_EQ(storage.capacity(), 5);
   EXPECT_TRUE(std::equal(storage.begin(), storage.begin() + 5, another_data));
+}
+
+TEST(InlineFirstStorageTest, ToString) {
+  inline_first_storage<16> storage;
+  EXPECT_EQ(to_string(storage), "inline_first_storage{size=0, capacity=16, data=[]}");
+
+  // Add some data
+  uint8_t data[] = {1, 2, 3, 4, 5};
+  storage.assign(data, sizeof(data));
+  EXPECT_EQ(to_string(storage), "inline_first_storage{size=5, capacity=16, data=[1, 2, 3, 4, 5]}");
+
+  // Test with larger data
+  inline_first_storage<4> small_storage;
+  uint8_t large_data[] = {10, 20, 30, 40, 50, 60};
+  small_storage.assign(large_data, sizeof(large_data));
+  EXPECT_EQ(to_string(small_storage), 
+            "inline_first_storage{size=6, capacity=6, data=[10, 20, 30, 40, 50, 60]}");
+
+  // Test with single byte
+  inline_first_storage<4> single_byte;
+  single_byte.push_back(42);
+  EXPECT_EQ(to_string(single_byte), "inline_first_storage{size=1, capacity=4, data=[42]}");
+}
+
+TEST(InlineFirstStorageTest, FormatSupport) {
+  inline_first_storage<8> storage;
+  uint8_t data[] = {1, 2, 3};
+  storage.assign(data, sizeof(data));
+
+  EXPECT_EQ(std::format("{}", storage), 
+            "inline_first_storage{size=3, capacity=8, data=[1, 2, 3]}");
+  EXPECT_EQ(std::format("{:s}", storage), 
+            "inline_first_storage{size=3, capacity=8, data=[1, 2, 3]}");
 }
