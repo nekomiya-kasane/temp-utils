@@ -19,6 +19,7 @@
 			</ArrayItems>
 		</Expand>
 	</Type>
+	
 	<Type Name="ustring::view">
 		<DisplayString Condition="_size == 0"> empty</DisplayString>
 		<StringView>_data,[_size]</StringView>
@@ -31,7 +32,8 @@
 			</ArrayItems>
 		</Expand>
 	</Type>
-	<Type Name="ustring::code_point_iterator">
+	
+	<!--<Type Name="ustring::code_point_iterator">
 		<DisplayString Condition="_data == nullptr">invalid</DisplayString>
 		<DisplayString Condition="_data == _end">end</DisplayString>
 		<DisplayString>pos={_data-_start} cp=U+{_codepoint,Xb} '{(char)_codepoint,c}' size={_size}</DisplayString>
@@ -78,5 +80,5 @@
 			<Item Name="[view]">_view</Item>
 			<Item Name="[break_iterator]">_break_iterator</Item>
 		</Expand>
-	</Type>
+	</Type>-->
 </AutoVisualizer>

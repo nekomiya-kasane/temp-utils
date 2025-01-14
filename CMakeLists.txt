@@ -11,6 +11,7 @@ set(ICU_INCLUDE_DIR )
 find_package(ICU REQUIRED COMPONENTS uc in i18n data)
 find_package(TBB REQUIRED)
 find_package(GTest REQUIRED)
+find_package(benchmark REQUIRED)
 #find_package(Hyperscan REQUIRED)
 
 add_compile_options(/utf-8 /fsanitize=address)
@@ -54,14 +55,22 @@ target_link_libraries(ustring_test
 gtest_discover_tests(ustring_test)
 
 add_executable(inline_first_storage_test
-    inline_first_storage_test.cpp
+    inline_first_storage_tests.cpp
 )
 
 target_link_libraries(inline_first_storage_test
     PRIVATE
-    ustring
     GTest::gtest
     GTest::gtest_main
+)
+
+add_executable(inline_first_storage_benchmark
+    inline_first_storage_benchmark.cpp
+)
+
+target_link_libraries(inline_first_storage_benchmark
+    PRIVATE
+    benchmark::benchmark
 )
 
 gtest_discover_tests(inline_first_storage_test)

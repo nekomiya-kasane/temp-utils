@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="inline_first_storage&lt;*&gt;">
+    <DisplayString>{{ capacity={_capacity}, using_buffer={_using_buffer} }}</DisplayString>
+	<StringView Condition="_using_buffer == true">_buffer,[_capacity]</StringView>
+	<StringView Condition="_using_buffer == false">_data,[_capacity]</StringView>
+    <Expand>
+      <Item Name="[capacity]">_capacity</Item>
+      <Item Name="[using_buffer]">_using_buffer</Item>
+      <ArrayItems>
+        <Size>_capacity</Size>
+        <ValuePointer Condition="_using_buffer">_buffer</ValuePointer>
+        <ValuePointer Condition="!_using_buffer">_data</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+</AutoVisualizer>
