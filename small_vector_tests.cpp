@@ -399,6 +399,66 @@ TEST(SmallVectorTest, MixedOperations) {
   EXPECT_EQ(v[3], "!");
 }
 
+TEST(SmallVectorTest, VectorConversion) {
+  small_vector<int> sv = {1, 2, 3, 4, 5};
+  
+  // Implicit conversion
+  std::vector<int> v1 = sv;
+  EXPECT_EQ(v1.size(), 5);
+  EXPECT_TRUE(std::equal(v1.begin(), v1.end(), sv.begin()));
+
+  // Explicit conversion
+  auto v2 = sv.to_vector();
+  EXPECT_EQ(v2.size(), 5);
+  EXPECT_TRUE(std::equal(v2.begin(), v2.end(), sv.begin()));
+}
+
+TEST(SmallVectorTest, ViewSupport) {
+  small_vector<int> sv = {1, 2, 3, 4, 5};
+  auto view = sv.to_view();
+
+  // Basic properties
+  EXPECT_EQ(view.size(), 5);
+  EXPECT_FALSE(view.empty());
+  EXPECT_EQ(view.front(), 1);
+  EXPECT_EQ(view.back(), 5);
+
+  // Iterator access
+  EXPECT_TRUE(std::equal(view.begin(), view.end(), sv.begin()));
+  EXPECT_TRUE(std::equal(view.rbegin(), view.rend(), sv.rbegin()));
+
+  // Element access
+  EXPECT_EQ(view[2], 3);
+  EXPECT_EQ(view.at(2), 3);
+  EXPECT_THROW((void)view.at(5), std::out_of_range);
+
+  // Subview operations
+  auto view2 = view;
+  view2.remove_prefix(2);
+  EXPECT_EQ(view2.size(), 3);
+  EXPECT_EQ(view2.front(), 3);
+
+  view2 = view;
+  view2.remove_suffix(2);
+  EXPECT_EQ(view2.size(), 3);
+  EXPECT_EQ(view2.back(), 3);
+
+  // Vector conversion
+  std::vector<int> v1 = view;
+  EXPECT_EQ(v1.size(), 5);
+  EXPECT_TRUE(std::equal(v1.begin(), v1.end(), sv.begin()));
+
+  auto v2 = view.to_vector();
+  EXPECT_EQ(v2.size(), 5);
+  EXPECT_TRUE(std::equal(v2.begin(), v2.end(), sv.begin()));
+
+  // Comparison
+  auto view3 = sv.to_view();
+  EXPECT_EQ(view, view3);
+  view3.remove_prefix(1);
+  EXPECT_NE(view, view3);
+}
+
 //TEST(SmallVectorTest, ToString) {
 //  small_vector<int> v = {1, 2, 3, 4, 5};
 //  EXPECT_EQ(to_string(v), "[1, 2, 3, 4, 5]");

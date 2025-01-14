@@ -173,12 +173,12 @@ template<typename T, size_t InlineCapacity = 16> class small_vector {
     return data()[_size - 1];
   }
 
-  constexpr T *data() noexcept
+  [[nodiscard]] constexpr T *data() noexcept
   {
     return reinterpret_cast<T *>(_storage.data());
   }
 
-  constexpr const T *data() const noexcept
+  [[nodiscard]] constexpr const T *data() const noexcept
   {
     return reinterpret_cast<const T *>(_storage.data());
   }
@@ -439,6 +439,103 @@ template<typename T, size_t InlineCapacity = 16> class small_vector {
       return false;
     }
     return std::equal(lhs.cbegin(), lhs.cend(), rhs.cbegin(), rhs.cend());
+  }
+
+  // Convert to std::vector
+  operator std::vector<T>() const {
+    return std::vector<T>(cbegin(), cend());
+  }
+
+  // Explicit conversion to std::vector
+  std::vector<T> to_vector() const {
+    return std::vector<T>(*this);
+  }
+
+  // View support
+  class view {
+   public:
+    using value_type = T;
+    using size_type = size_t;
+    using difference_type = ptrdiff_t;
+    using reference = const value_type&;
+    using const_reference = const value_type&;
+    using pointer = const value_type*;
+    using const_pointer = const value_type*;
+    using iterator = const value_type*;
+    using const_iterator = const value_type*;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+    constexpr view() noexcept = default;
+    constexpr view(const small_vector& v) noexcept 
+      : _data(v.data()), _size(v.size()) {}
+    constexpr view(const_pointer data, size_type size) noexcept 
+      : _data(data), _size(size) {}
+
+    [[nodiscard]] constexpr const_iterator begin() const noexcept { return _data; }
+    [[nodiscard]] constexpr const_iterator end() const noexcept { return _data + _size; }
+    [[nodiscard]] constexpr const_iterator cbegin() const noexcept { return begin(); }
+    [[nodiscard]] constexpr const_iterator cend() const noexcept { return end(); }
+    [[nodiscard]] constexpr const_reverse_iterator rbegin() const noexcept { 
+      return const_reverse_iterator(end()); 
+    }
+    [[nodiscard]] constexpr const_reverse_iterator rend() const noexcept { 
+      return const_reverse_iterator(begin()); 
+    }
+    [[nodiscard]] constexpr const_reverse_iterator crbegin() const noexcept { return rbegin(); }
+    [[nodiscard]] constexpr const_reverse_iterator crend() const noexcept { return rend(); }
+
+    [[nodiscard]] constexpr const_reference operator[](size_type pos) const { return _data[pos]; }
+    [[nodiscard]] constexpr const_reference at(size_type pos) const {
+      if (pos >= _size) {
+        throw std::out_of_range("small_vector::view::at");
+      }
+      return _data[pos];
+    }
+    [[nodiscard]] constexpr const_reference front() const { return _data[0]; }
+    [[nodiscard]] constexpr const_reference back() const { return _data[_size - 1]; }
+    [[nodiscard]] constexpr const_pointer data() const noexcept { return _data; }
+
+    [[nodiscard]] constexpr bool empty() const noexcept { return _size == 0; }
+    [[nodiscard]] constexpr size_type size() const noexcept { return _size; }
+    [[nodiscard]] constexpr size_type max_size() const noexcept { return _size; }
+
+    constexpr void remove_prefix(size_type n) {
+      n = std::min(n, _size);
+      _data += n;
+      _size -= n;
+    }
+
+    constexpr void remove_suffix(size_type n) {
+      n = std::min(n, _size);
+      _size -= n;
+    }
+
+    constexpr void swap(view& other) noexcept {
+      std::swap(_data, other._data);
+      std::swap(_size, other._size);
+    }
+
+    // Convert view to std::vector
+    operator std::vector<T>() const {
+      return std::vector<T>(begin(), end());
+    }
+
+    std::vector<T> to_vector() const {
+      return std::vector<T>(*this);
+    }
+
+    friend constexpr bool operator==(const view& lhs, const view& rhs) noexcept {
+      return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+    }
+
+   private:
+    const_pointer _data{nullptr};
+    size_type _size{0};
+  };
+
+  [[nodiscard]] constexpr view to_view() const noexcept {
+    return view(*this);
   }
 
  private:

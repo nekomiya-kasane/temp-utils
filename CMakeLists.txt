@@ -12,12 +12,15 @@ find_package(ICU REQUIRED COMPONENTS uc in i18n data)
 find_package(TBB REQUIRED)
 find_package(GTest REQUIRED)
 find_package(benchmark REQUIRED)
+find_package(mimalloc CONFIG REQUIRED)
 #find_package(Hyperscan REQUIRED)
 
 add_compile_options(/utf-8 /fsanitize=address)
 
 link_libraries(ICU::uc ICU::i18n ICU::data ICU::in)# TBB::tbb)
 link_libraries(TBB::tbb)
+
+link_libraries($<IF:$<TARGET_EXISTS:mimalloc-static>,mimalloc-static,mimalloc>)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -109,3 +112,6 @@ target_link_libraries(small_vector_benchmark
 #)
 #
 #gtest_discover_tests(range_formatter_test)
+
+  
+  
