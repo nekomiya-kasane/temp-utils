@@ -17,6 +17,8 @@ find_package(mimalloc CONFIG REQUIRED)
 
 add_compile_options(/utf-8 /fsanitize=address)
 
+add_compile_definitions(-DMIMALLOC_VERBOSE=1)
+
 link_libraries(ICU::uc ICU::i18n ICU::data ICU::in)# TBB::tbb)
 link_libraries(TBB::tbb)
 

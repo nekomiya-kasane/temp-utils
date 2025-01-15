@@ -2,9 +2,9 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <format>
 #include <string>
 #include <vector>
-#include <format>
 
 TEST(SmallVectorTest, DefaultConstruction)
 {
@@ -262,9 +262,12 @@ TEST(SmallVectorTest, Emplace)
 class NonDefaultConstructible {
  public:
   explicit NonDefaultConstructible(int v) : value(v) {}
-  NonDefaultConstructible(const NonDefaultConstructible&) = default;
-  NonDefaultConstructible& operator=(const NonDefaultConstructible&) = default;
-  bool operator==(const NonDefaultConstructible& other) const { return value == other.value; }
+  NonDefaultConstructible(const NonDefaultConstructible &) = default;
+  NonDefaultConstructible &operator=(const NonDefaultConstructible &) = default;
+  bool operator==(const NonDefaultConstructible &other) const
+  {
+    return value == other.value;
+  }
   int value;
 };
 
@@ -272,8 +275,12 @@ class NonDefaultConstructible {
 class MoveOnly {
  public:
   explicit MoveOnly(int v) : value(new int(v)) {}
-  MoveOnly(MoveOnly&& other) noexcept : value(other.value) { other.value = nullptr; }
-  MoveOnly& operator=(MoveOnly&& other) noexcept {
+  MoveOnly(MoveOnly &&other) noexcept : value(other.value)
+  {
+    other.value = nullptr;
+  }
+  MoveOnly &operator=(MoveOnly &&other) noexcept
+  {
     if (this != &other) {
       delete value;
       value = other.value;
@@ -281,59 +288,81 @@ class MoveOnly {
     }
     return *this;
   }
-  ~MoveOnly() { delete value; }
-  MoveOnly(const MoveOnly&) = delete;
-  MoveOnly& operator=(const MoveOnly&) = delete;
-  bool operator==(const MoveOnly& other) const { return *value == *other.value; }
-  int getValue() const { return *value; }
+  ~MoveOnly()
+  {
+    delete value;
+  }
+  MoveOnly(const MoveOnly &) = delete;
+  MoveOnly &operator=(const MoveOnly &) = delete;
+  bool operator==(const MoveOnly &other) const
+  {
+    return *value == *other.value;
+  }
+  int getValue() const
+  {
+    return *value;
+  }
+
  private:
-  int* value;
+  int *value;
 };
 
 // Type with throwing constructor
 class ThrowingCtor {
  public:
-  explicit ThrowingCtor(bool should_throw = false) {
-    if (should_throw) throw std::runtime_error("Constructor throw");
+  explicit ThrowingCtor(bool should_throw = false)
+  {
+    if (should_throw)
+      throw std::runtime_error("Constructor throw");
     value = new int(42);
   }
-  ThrowingCtor(const ThrowingCtor& other) : value(new int(*other.value)) {}
-  ThrowingCtor& operator=(const ThrowingCtor& other) {
+  ThrowingCtor(const ThrowingCtor &other) : value(new int(*other.value)) {}
+  ThrowingCtor &operator=(const ThrowingCtor &other)
+  {
     if (this != &other) {
       delete value;
       value = new int(*other.value);
     }
     return *this;
   }
-  ~ThrowingCtor() { delete value; }
-  bool operator==(const ThrowingCtor& other) const { return *value == *other.value; }
+  ~ThrowingCtor()
+  {
+    delete value;
+  }
+  bool operator==(const ThrowingCtor &other) const
+  {
+    return *value == *other.value;
+  }
+
  private:
-  int* value;
+  int *value;
 };
 
-TEST(SmallVectorTest, NonDefaultConstructibleType) {
+TEST(SmallVectorTest, NonDefaultConstructibleType)
+{
   small_vector<NonDefaultConstructible, 4> v;
   v.emplace_back(1);
   v.emplace_back(2);
   v.emplace(v.begin() + 1, 3);
   //
-  //EXPECT_EQ(v.size(), 3);
-  //EXPECT_EQ(v[0].value, 1);
-  //EXPECT_EQ(v[1].value, 3);
-  //EXPECT_EQ(v[2].value, 2);
+  // EXPECT_EQ(v.size(), 3);
+  // EXPECT_EQ(v[0].value, 1);
+  // EXPECT_EQ(v[1].value, 3);
+  // EXPECT_EQ(v[2].value, 2);
 }
 
-TEST(SmallVectorTest, MoveOnlyType) {
+TEST(SmallVectorTest, MoveOnlyType)
+{
   small_vector<MoveOnly, 4> v;
   v.emplace_back(1);
   v.emplace_back(2);
   v.emplace_back(3);
-  
+
   EXPECT_EQ(v.size(), 3);
   EXPECT_EQ(v[0].getValue(), 1);
   EXPECT_EQ(v[1].getValue(), 2);
   EXPECT_EQ(v[2].getValue(), 3);
-  
+
   // Test move construction
   small_vector<MoveOnly, 4> v2 = std::move(v);
   EXPECT_EQ(v2.size(), 3);
@@ -342,56 +371,59 @@ TEST(SmallVectorTest, MoveOnlyType) {
   EXPECT_EQ(v2[2].getValue(), 3);
 }
 
-TEST(SmallVectorTest, ThrowingConstructor) {
+TEST(SmallVectorTest, ThrowingConstructor)
+{
   small_vector<ThrowingCtor, 4> v;
-  
+
   // Non-throwing case
   EXPECT_NO_THROW({
     v.emplace_back(false);
     v.emplace_back(false);
   });
-  
+
   EXPECT_EQ(v.size(), 2);
-  
+
   // Throwing case
   EXPECT_THROW(v.emplace_back(true), std::runtime_error);
-  
+
   // Size should remain unchanged after exception
   EXPECT_EQ(v.size(), 2);
 }
 
-TEST(SmallVectorTest, ComplexReallocation) {
+TEST(SmallVectorTest, ComplexReallocation)
+{
   small_vector<std::vector<int>, 2> v;
-  
+
   // Add some vectors with data
   v.emplace_back(std::vector<int>{1, 2, 3});
   v.emplace_back(std::vector<int>{4, 5, 6});
-  
+
   // This will cause reallocation
   v.emplace_back(std::vector<int>{7, 8, 9});
-  
+
   EXPECT_EQ(v.size(), 3);
   EXPECT_EQ(v[0], (std::vector<int>{1, 2, 3}));
   EXPECT_EQ(v[1], (std::vector<int>{4, 5, 6}));
   EXPECT_EQ(v[2], (std::vector<int>{7, 8, 9}));
 }
 
-TEST(SmallVectorTest, MixedOperations) {
+TEST(SmallVectorTest, MixedOperations)
+{
   small_vector<std::string, 4> v;
-  
+
   // Test various operations mixed together
   v.emplace_back("hello");
   v.emplace(v.begin(), "world");
   v.push_back("!");
   EXPECT_EQ(v.size(), 3);
-  
+
   // Insert in the middle
   v.insert(v.begin() + 1, {"there", "beautiful"});
-  
+
   // Erase and replace
   v.erase(v.begin() + 2);
   v[2] = "gorgeous";
-  
+
   EXPECT_EQ(v.size(), 4);
   EXPECT_EQ(v[0], "world");
   EXPECT_EQ(v[1], "there");
@@ -399,9 +431,10 @@ TEST(SmallVectorTest, MixedOperations) {
   EXPECT_EQ(v[3], "!");
 }
 
-TEST(SmallVectorTest, VectorConversion) {
+TEST(SmallVectorTest, VectorConversion)
+{
   small_vector<int> sv = {1, 2, 3, 4, 5};
-  
+
   // Implicit conversion
   std::vector<int> v1 = sv;
   EXPECT_EQ(v1.size(), 5);
@@ -413,7 +446,8 @@ TEST(SmallVectorTest, VectorConversion) {
   EXPECT_TRUE(std::equal(v2.begin(), v2.end(), sv.begin()));
 }
 
-TEST(SmallVectorTest, ViewSupport) {
+TEST(SmallVectorTest, ViewSupport)
+{
   small_vector<int> sv = {1, 2, 3, 4, 5};
   auto view = sv.to_view();
 
@@ -459,42 +493,99 @@ TEST(SmallVectorTest, ViewSupport) {
   EXPECT_NE(view, view3);
 }
 
-//TEST(SmallVectorTest, ToString) {
-//  small_vector<int> v = {1, 2, 3, 4, 5};
-//  EXPECT_EQ(to_string(v), "[1, 2, 3, 4, 5]");
-//
-//  small_vector<std::string> sv = {"hello", "world"};
-//  EXPECT_EQ(to_string(sv), "[\"hello\", \"world\"]");
-//
-//  small_vector<double> dv = {1.5, 2.7, 3.14};
-//  EXPECT_EQ(to_string(dv), "[1.500000, 2.700000, 3.140000]");
-//
-//  // Test empty vector
-//  small_vector<int> empty;
-//  EXPECT_EQ(to_string(empty), "[]");
-//
-//  // Test single element
-//  small_vector<int> single = {42};
-//  EXPECT_EQ(to_string(single), "[42]");
-//
-//  // Test with custom type
-//  struct Point {
-//    int x, y;
-//    friend std::ostream& operator<<(std::ostream& os, const Point& p) {
-//      return os << "(" << p.x << "," << p.y << ")";
-//    }
-//  };
-//  small_vector<Point> pv;
-//  pv.emplace_back(Point{1, 2});
-//  pv.emplace_back(Point{3, 4});
-//  EXPECT_EQ(to_string(pv), "[(1,2), (3,4)]");
-//}
-//
-//TEST(SmallVectorTest, FormatSupport) {
-//  small_vector<int> v = {1, 2, 3};
-//  EXPECT_EQ(std::format("{}", v), "[1, 2, 3]");
-//  EXPECT_EQ(std::format("{:s}", v), "[1, 2, 3]");
-//
-//  small_vector<std::string> sv = {"hello", "world"};
-//  EXPECT_EQ(std::format("{}", sv), "[\"hello\", \"world\"]");
-//}
+// Custom type with formatter
+struct Point {
+  int x, y;
+  friend auto operator<=>(const Point &, const Point &) = default;
+};
+template<> struct std::formatter<Point> {
+  constexpr auto parse(format_parse_context &ctx)
+  {
+    return ctx.begin();
+  }
+  auto format(const Point &p, format_context &ctx) const
+  {
+    return format_to(ctx.out(), "({},{})", p.x, p.y);
+  }
+};
+
+TEST(SmallVectorTest, FormattingSupport)
+{
+  small_vector<int> v = {1, 2, 3, 4, 5};
+
+  // Default format
+  EXPECT_EQ(std::format("{}", v), "[1, 2, 3, 4, 5]");
+
+  // Compact format
+  EXPECT_EQ(std::format("{:c}", v), "[1,2,3,4,5]");
+
+  // Pretty format
+  EXPECT_EQ(std::format("{:p}", v), "[\n  1,\n  2,\n  3,\n  4,\n  5\n]");
+
+  // Invalid format specifier, won't compile instead throwing a runtime execption
+  // EXPECT_THROW((void)std::format("{:x}", v), std::format_error);
+
+  // Empty vector
+  small_vector<int> empty;
+  EXPECT_EQ(std::format("{}", empty), "[]");
+  EXPECT_EQ(std::format("{:c}", empty), "[]");
+  EXPECT_EQ(std::format("{:p}", empty), "[\n]");
+
+  // String vector
+  small_vector<std::string> sv = {"hello", "world"};
+  EXPECT_EQ(std::format("{}", sv), "[\"hello\", \"world\"]");
+  EXPECT_EQ(std::format("{:c}", sv), "[\"hello\",\"world\"]");
+  EXPECT_EQ(std::format("{:p}", sv), "[\n  \"hello\",\n  \"world\"\n]");
+
+  small_vector<Point> pv;
+  pv.push_back({1, 2});
+  pv.push_back({3, 4});
+  EXPECT_EQ(std::format("{}", pv), "[(1,2), (3,4)]");
+  EXPECT_EQ(std::format("{:c}", pv), "[(1,2),(3,4)]");
+}
+
+TEST(SmallVectorTest, ViewFormatting)
+{
+  small_vector<int> v = {1, 2, 3, 4, 5};
+  auto view = v.to_view();
+
+  // Default format
+  EXPECT_EQ(std::format("{}", view), "[1, 2, 3, 4, 5]");
+
+  // Compact format
+  EXPECT_EQ(std::format("{:c}", view), "[1,2,3,4,5]");
+
+  // Pretty format
+  EXPECT_EQ(std::format("{:p}", view), "[\n  1,\n  2,\n  3,\n  4,\n  5\n]");
+
+  // View with prefix/suffix removed
+  auto subview = view;
+  subview.remove_prefix(2);
+  EXPECT_EQ(std::format("{}", subview), "[3, 4, 5]");
+
+  subview = view;
+  subview.remove_suffix(2);
+  EXPECT_EQ(std::format("{}", subview), "[1, 2, 3]");
+}
+
+TEST(SmallVectorTest, StreamOperator)
+{
+  small_vector<int> v = {1, 2, 3};
+  std::ostringstream oss;
+
+  // Vector streaming
+  oss << v;
+  EXPECT_EQ(oss.str(), "[1, 2, 3]");
+
+  // View streaming
+  // todo: this won't compile
+  // oss.str("");
+  // oss << v.to_view();
+  // EXPECT_EQ(oss.str(), "[1, 2, 3]");
+
+  // String vector streaming
+  small_vector<std::string> sv = {"hello", "world"};
+  oss.str("");
+  oss << sv;
+  EXPECT_EQ(oss.str(), "[hello, world]");
+}

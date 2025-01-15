@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <concepts>
 #include <cstddef>
+#include <format>
 #include <initializer_list>
 #include <iterator>
 #include <memory>
@@ -11,7 +12,6 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
-#include <format>
 
 template<typename T, size_t InlineCapacity = 16> class small_vector {
  public:
@@ -173,12 +173,12 @@ template<typename T, size_t InlineCapacity = 16> class small_vector {
     return data()[_size - 1];
   }
 
-  [[nodiscard]] constexpr T *data() noexcept
+  constexpr T *data() noexcept
   {
     return reinterpret_cast<T *>(_storage.data());
   }
 
-  [[nodiscard]] constexpr const T *data() const noexcept
+  constexpr const T *data() const noexcept
   {
     return reinterpret_cast<const T *>(_storage.data());
   }
@@ -442,12 +442,14 @@ template<typename T, size_t InlineCapacity = 16> class small_vector {
   }
 
   // Convert to std::vector
-  operator std::vector<T>() const {
+  operator std::vector<T>() const
+  {
     return std::vector<T>(cbegin(), cend());
   }
 
   // Explicit conversion to std::vector
-  std::vector<T> to_vector() const {
+  std::vector<T> to_vector() const
+  {
     return std::vector<T>(*this);
   }
 
@@ -455,77 +457,132 @@ template<typename T, size_t InlineCapacity = 16> class small_vector {
   class view {
    public:
     using value_type = T;
-    using size_type = size_t;
-    using difference_type = ptrdiff_t;
-    using reference = const value_type&;
-    using const_reference = const value_type&;
-    using pointer = const value_type*;
-    using const_pointer = const value_type*;
-    using iterator = const value_type*;
-    using const_iterator = const value_type*;
+    using size_type = size_type;
+    using difference_type = difference_type;
+    using reference = const value_type &;
+    using const_reference = const value_type &;
+    using pointer = const value_type *;
+    using const_pointer = const value_type *;
+    using iterator = const value_type *;
+    using const_iterator = const value_type *;
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
+    using viewed_type = small_vector;
+
     constexpr view() noexcept = default;
-    constexpr view(const small_vector& v) noexcept 
-      : _data(v.data()), _size(v.size()) {}
-    constexpr view(const_pointer data, size_type size) noexcept 
-      : _data(data), _size(size) {}
-
-    [[nodiscard]] constexpr const_iterator begin() const noexcept { return _data; }
-    [[nodiscard]] constexpr const_iterator end() const noexcept { return _data + _size; }
-    [[nodiscard]] constexpr const_iterator cbegin() const noexcept { return begin(); }
-    [[nodiscard]] constexpr const_iterator cend() const noexcept { return end(); }
-    [[nodiscard]] constexpr const_reverse_iterator rbegin() const noexcept { 
-      return const_reverse_iterator(end()); 
+    constexpr view(const small_vector &v) noexcept : _data(v.data()), _size(v.size()) {}
+    constexpr view(const_pointer data, size_type size) noexcept : _data(data), _size(size) {}
+    constexpr view(const_pointer start, const_pointer end) noexcept
+        : _data(start), _size(std::distance(start, end))
+    {
     }
-    [[nodiscard]] constexpr const_reverse_iterator rend() const noexcept { 
-      return const_reverse_iterator(begin()); 
-    }
-    [[nodiscard]] constexpr const_reverse_iterator crbegin() const noexcept { return rbegin(); }
-    [[nodiscard]] constexpr const_reverse_iterator crend() const noexcept { return rend(); }
 
-    [[nodiscard]] constexpr const_reference operator[](size_type pos) const { return _data[pos]; }
-    [[nodiscard]] constexpr const_reference at(size_type pos) const {
+    [[nodiscard]] constexpr const_iterator begin() const noexcept
+    {
+      return _data;
+    }
+    [[nodiscard]] constexpr const_iterator end() const noexcept
+    {
+      return _data + _size;
+    }
+    [[nodiscard]] constexpr const_iterator cbegin() const noexcept
+    {
+      return begin();
+    }
+    [[nodiscard]] constexpr const_iterator cend() const noexcept
+    {
+      return end();
+    }
+    [[nodiscard]] constexpr const_reverse_iterator rbegin() const noexcept
+    {
+      return const_reverse_iterator(end());
+    }
+    [[nodiscard]] constexpr const_reverse_iterator rend() const noexcept
+    {
+      return const_reverse_iterator(begin());
+    }
+    [[nodiscard]] constexpr const_reverse_iterator crbegin() const noexcept
+    {
+      return rbegin();
+    }
+    [[nodiscard]] constexpr const_reverse_iterator crend() const noexcept
+    {
+      return rend();
+    }
+
+    [[nodiscard]] constexpr const_reference operator[](size_type pos) const
+    {
+      return _data[pos];
+    }
+    [[nodiscard]] constexpr const_reference at(size_type pos) const
+    {
       if (pos >= _size) {
         throw std::out_of_range("small_vector::view::at");
       }
       return _data[pos];
     }
-    [[nodiscard]] constexpr const_reference front() const { return _data[0]; }
-    [[nodiscard]] constexpr const_reference back() const { return _data[_size - 1]; }
-    [[nodiscard]] constexpr const_pointer data() const noexcept { return _data; }
+    [[nodiscard]] constexpr const_reference front() const
+    {
+      return _data[0];
+    }
+    [[nodiscard]] constexpr const_reference back() const
+    {
+      return _data[_size - 1];
+    }
+    [[nodiscard]] constexpr const_pointer data() const noexcept
+    {
+      return _data;
+    }
 
-    [[nodiscard]] constexpr bool empty() const noexcept { return _size == 0; }
-    [[nodiscard]] constexpr size_type size() const noexcept { return _size; }
-    [[nodiscard]] constexpr size_type max_size() const noexcept { return _size; }
+    [[nodiscard]] constexpr bool empty() const noexcept
+    {
+      return _size == 0;
+    }
+    [[nodiscard]] constexpr size_type size() const noexcept
+    {
+      return _size;
+    }
+    [[nodiscard]] constexpr size_type max_size() const noexcept
+    {
+      return _size;
+    }
 
-    constexpr void remove_prefix(size_type n) {
-      n = std::min(n, _size);
+    constexpr void remove_prefix(size_type n)
+    {
+      if (n > _size) {
+        n = _size;
+      }
       _data += n;
       _size -= n;
     }
 
-    constexpr void remove_suffix(size_type n) {
-      n = std::min(n, _size);
+    constexpr void remove_suffix(size_type n)
+    {
+      if (n > _size) {
+        n = _size;
+      }
       _size -= n;
     }
 
-    constexpr void swap(view& other) noexcept {
+    constexpr void swap(view &other) noexcept
+    {
       std::swap(_data, other._data);
       std::swap(_size, other._size);
     }
 
-    // Convert view to std::vector
-    operator std::vector<T>() const {
+    [[nodiscard]] operator std::vector<T>() const
+    {
       return std::vector<T>(begin(), end());
     }
 
-    std::vector<T> to_vector() const {
+    [[nodiscard]] std::vector<T> to_vector() const
+    {
       return std::vector<T>(*this);
     }
 
-    friend constexpr bool operator==(const view& lhs, const view& rhs) noexcept {
+    [[nodiscard]] friend constexpr bool operator==(const view &lhs, const view &rhs) noexcept
+    {
       return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
     }
 
@@ -534,7 +591,8 @@ template<typename T, size_t InlineCapacity = 16> class small_vector {
     size_type _size{0};
   };
 
-  [[nodiscard]] constexpr view to_view() const noexcept {
+  [[nodiscard]] constexpr view to_view() const noexcept
+  {
     return view(*this);
   }
 
@@ -543,36 +601,171 @@ template<typename T, size_t InlineCapacity = 16> class small_vector {
   size_type _size{0};
 };
 
-template<typename T, size_t InlineCapacity>
-std::string to_string(const small_vector<T, InlineCapacity>& v) {
-  if (v.empty()) {
-    return "[]";
+template<typename T, size_t N> using small_vector_view = typename small_vector<T, N>::view;
+
+namespace traits {
+
+template<class T> constexpr inline bool is_small_vector_v = false;
+
+template<class T, std::size_t N>
+constexpr inline bool is_small_vector_v<small_vector<T, N>> = true;
+
+}  // namespace traits
+
+namespace concepts {
+
+template<class T>
+concept small_vector_view = requires() {
+  // has a small_vector_type alias
+  typename T::viewed_type;
+  // small_vector_type is a small_vector
+  requires traits::is_small_vector_v<typename T::viewed_type>;
+  // small_vector_type::view is equivalent to T
+  requires std::same_as<typename T::viewed_type::view, T>;
+};
+
+}  // namespace concepts
+
+// -> See: https://stackoverflow.com/questions/79355904/why-this-template-wont-compile
+//
+// This is actually a workaround as sometimes you cannot use nested templates like
+// template<typename T, size_t N>
+// struct std::formatter<small_vector_view<T, N>, char> {};
+//                      \                      /
+//                       ------- nested -------
+//
+template<concepts::small_vector_view T> struct std::formatter<T, char> {
+  enum class Style { Default, Compact, Pretty };
+  Style style = Style::Default;
+
+  constexpr auto parse(format_parse_context &ctx)
+  {
+    auto it = ctx.begin();
+    if (it == ctx.end() || *it == '}')
+      return it;
+
+    switch (*it) {
+      case 'c':
+        style = Style::Compact;
+        break;
+      case 'p':
+        style = Style::Pretty;
+        break;
+      default:
+        throw format_error("invalid format specifier for small_vector");
+    }
+    return ++it;
   }
 
-  std::string result = "[";
-  for (size_t i = 0; i < v.size(); ++i) {
-    if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, char*> || std::is_same_v<T, const char*>) {
-      result += std::format("\"{}\"", v[i]);
-    } else if constexpr (std::is_arithmetic_v<T>) {
-      result += std::format("{}", v[i]);
-    } else if constexpr (requires { std::format("{}", std::declval<T>()); }) {
-      result += std::format("{}", v[i]);
-    } else {
-      result += "<unprintable>";
+  auto format(const T &v, format_context &ctx) const
+  {
+    if (v.empty()) {
+      if (style == Style::Pretty) {
+        return format_to(ctx.out(), "[\n]");
+      }
+      return format_to(ctx.out(), "[]");
     }
-    
-    if (i < v.size() - 1) {
-      result += ", ";
-    }
-  }
-  result += "]";
-  return result;
-}
 
-// Formatter specialization for small_vector
-template<typename T, size_t N>
-struct std::formatter<small_vector<T, N>> : std::formatter<std::string> {
-  auto format(const small_vector<T, N>& v, format_context& ctx) const {
-    return formatter<string>::format(to_string(v), ctx);
+    std::string result;
+    if (style == Style::Pretty) {
+      result = "[\n  ";
+    }
+    else {
+      result = "[";
+    }
+
+    for (size_t i = 0; i < v.size(); ++i) {
+      if (i > 0) {
+        if (style == Style::Pretty) {
+          result += ",\n  ";
+        }
+        else if (style == Style::Compact) {
+          result += ",";
+        }
+        else {
+          result += ", ";
+        }
+      }
+      if constexpr (std::is_same_v<typename T::value_type, std::string>) {
+        result += std::format("\"{}\"", v[i]);
+      }
+      else {
+        result += std::format("{}", v[i]);
+      }
+    }
+
+    if (style == Style::Pretty) {
+      result += "\n]";
+    }
+    else {
+      result += "]";
+    }
+
+    return format_to(ctx.out(), "{}", result);
   }
 };
+
+template<typename T, size_t N>
+struct std::formatter<small_vector<T, N>>  // NOLINT(cert-dcl58-cpp)
+    : std::formatter<small_vector_view<T, N>> {
+  auto format(const small_vector<T, N> &v, format_context &ctx) const
+  {
+    return formatter<small_vector_view<T, N>>::format(
+        small_vector_view<T, N>(v.cbegin(), v.cend()), ctx);
+  }
+};
+
+template<typename T, size_t N>
+std::ostream &operator<<(std::ostream &os, const small_vector<T, N> &v)
+{
+  os << std::format("{}", v);
+  return os;
+}
+
+template<typename T, size_t N>
+std::ostream &operator<<(std::ostream &os, const small_vector_view<T, N> &v)
+{
+  os << std::format("{}", v);
+  return os;
+}
+
+template<typename T, size_t N>
+std::ostringstream &operator<<(std::ostringstream &os, const small_vector<T, N> &v)
+{
+  os << std::format("{}", v);
+  return os;
+}
+
+template<typename T, size_t N>
+std::ostringstream &operator<<(std::ostringstream &os, const small_vector_view<T, N> &v)
+{
+  os << std::format("{}", v);
+  return os;
+}
+
+template<typename T, size_t N> std::ostream &operator<<(std::ostream &os, small_vector<T, N> &&v)
+{
+  os << std::format("{}", v);
+  return os;
+}
+
+template<typename T, size_t N>
+std::ostream &operator<<(std::ostream &os, small_vector_view<T, N> &&v)
+{
+  os << std::format("{}", v);
+  return os;
+}
+
+template<typename T, size_t N>
+std::ostringstream &operator<<(std::ostringstream &os, small_vector<T, N> &&v)
+{
+  os << std::format("{}", v);
+  return os;
+}
+
+template<typename T, size_t N>
+std::ostringstream &operator<<(std::ostringstream &os, small_vector_view<T, N> &&v)
+{
+  os << std::format("{}", v);
+  return os;
+}
