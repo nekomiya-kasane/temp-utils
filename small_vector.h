@@ -638,7 +638,7 @@ template<concepts::small_vector_view T> struct std::formatter<T, char> {
   enum class Style { Default, Compact, Pretty };
   Style style = Style::Default;
 
-  constexpr auto parse(format_parse_context &ctx)
+  template<typename FormatParseContext> constexpr auto parse(FormatParseContext &ctx)
   {
     auto it = ctx.begin();
     if (it == ctx.end() || *it == '}')
@@ -657,7 +657,7 @@ template<concepts::small_vector_view T> struct std::formatter<T, char> {
     return ++it;
   }
 
-  auto format(const T &v, format_context &ctx) const
+  template<typename FormatContext> auto format(const T &v, FormatContext &ctx) const
   {
     if (v.empty()) {
       if (style == Style::Pretty) {

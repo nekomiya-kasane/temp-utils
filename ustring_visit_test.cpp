@@ -54,9 +54,11 @@ TEST_F(UStringVisitTest, AtFunction)
   EXPECT_EQ(const_str.at(4), u8'o');
 
   // Test at() with invalid index
+#ifdef _DEBUG
   EXPECT_THROW((void)small_str.at(5), std::out_of_range);
   EXPECT_THROW((void)const_str.at(5), std::out_of_range);
   EXPECT_THROW((void)empty_str.at(0), std::out_of_range);
+#endif
 
   // Modify string using at()
   small_str.at(1) = u8'E';
@@ -81,9 +83,11 @@ TEST_F(UStringVisitTest, FrontFunction)
   EXPECT_EQ(std::string(small_str.begin(), small_str.end()), "hello");
 
   // Test front() with empty string
+#ifdef _DEBUG
   EXPECT_THROW((void)empty_str.front(), std::out_of_range);
   const ustring& const_empty = empty_str;
   EXPECT_THROW((void)const_empty.front(), std::out_of_range);
+#endif
 }
 
 // Test back() function

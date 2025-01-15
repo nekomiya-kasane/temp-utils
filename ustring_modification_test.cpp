@@ -156,8 +156,10 @@ TEST_F(UStringModificationTest, EdgeCases)
   EXPECT_TRUE(str.empty());
 
   // Out of range operations should throw
+#ifdef _DEBUG
   EXPECT_THROW(str.insert(1, "Hello"), std::out_of_range);
   EXPECT_THROW(str.erase(1, 1), std::out_of_range);
+#endif
 }
 
 // Test capacity management

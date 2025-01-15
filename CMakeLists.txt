@@ -46,6 +46,7 @@ add_executable(ustring_test
     ustring_modification_test.cpp
     ustring_search_test.cpp
     ustring_transform_test.cpp
+    ustring_format_test.cpp
     signal_test.cpp
 )
 
@@ -68,6 +69,8 @@ target_link_libraries(inline_first_storage_test
     GTest::gtest_main
 )
 
+gtest_discover_tests(inline_first_storage_test)
+
 add_executable(inline_first_storage_benchmark
     inline_first_storage_benchmark.cpp
 )
@@ -76,8 +79,6 @@ target_link_libraries(inline_first_storage_benchmark
     PRIVATE
     benchmark::benchmark
 )
-
-gtest_discover_tests(inline_first_storage_test)
 
 add_executable(small_vector_test
     small_vector.h
@@ -115,5 +116,16 @@ target_link_libraries(small_vector_benchmark
 #
 #gtest_discover_tests(range_formatter_test)
 
+add_executable(compiler_features_test
+    compiler_features.h
+    compiler_features_test.cpp
+)
+
+target_link_libraries(compiler_features_test
+    PRIVATE
+    GTest::gtest
+    GTest::gtest_main
+)
   
+gtest_discover_tests(compiler_features_test)
   

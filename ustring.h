@@ -17,6 +17,8 @@
 #include <variant>
 #include <vector>
 
+#include "compiler_features.h"
+
 enum class CharProperty : uint32_t {
   NONE = 0,
   // Basic categories
@@ -1259,3 +1261,25 @@ template<> struct std::formatter<ustring> : std::formatter<std::string_view> {
     return formatter<string_view>::format(str.to_string_view(), ctx);
   }
 };
+
+static_assert(sizeof(char8_t) == sizeof(char), "The aliens are invading our earth?");
+
+FORCEINLINE const char *TEXT(const char8_t *str)
+{
+  return reinterpret_cast<const char *>(str);
+}
+
+FORCEINLINE char *TEXT(char8_t *str)
+{
+  return reinterpret_cast<char *>(str);
+}
+
+FORCEINLINE const char *TEXT(const char *str)
+{
+  return str;
+}
+
+FORCEINLINE char *TEXT(char *str)
+{
+  return str;
+}
