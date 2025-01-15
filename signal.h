@@ -13,6 +13,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "basic_concepts.h"
+
 template<typename R> struct Task {
   std::function<R()> func;
   int priority;
@@ -157,12 +159,7 @@ class Signal<R(Args...), Safety> : public SignalBase {
   }
 
  public:
-  // 连接选项
-
-
-
-  // 函数对象和 lambda
-  template<typename F> struct function_traits : function_traits<decltype(&F::operator())> {};
+  
 
   // 连接成员函数
   template<typename C, typename Func>
@@ -171,7 +168,7 @@ class Signal<R(Args...), Safety> : public SignalBase {
     static_assert(std::is_base_of_v<std::enable_shared_from_this<C>, C>,
                   "Class must inherit from std::enable_shared_from_this");
 
-    using MemberFunc = typename detail::function_traits<Func>::result_type;
+    using MemberFunc = typename traits::function_traits<Func>::result_type;
     auto wrapper = std::make_shared<SlotWrapper<Func, Args...>>(obj, std::forward<Func>(func));
 
     return withExclusiveLock([&] {
