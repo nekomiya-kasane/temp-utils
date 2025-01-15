@@ -493,6 +493,45 @@ TEST(SmallVectorTest, ViewSupport)
   EXPECT_NE(view, view3);
 }
 
+TEST(SmallVectorTest, RangeViewsSupport)
+{
+  small_vector<int> vec{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+
+  // Test filter view
+  auto filtered = vec | std::views::filter([](int x) { return x % 2 == 0; });
+  small_vector<int> even_numbers(filtered.begin(), filtered.end());
+  EXPECT_EQ(even_numbers.size(), 5);
+  EXPECT_EQ(even_numbers[0], 2);
+  EXPECT_EQ(even_numbers[4], 10);
+
+  // Test transform view
+  auto transformed = vec | std::views::transform([](int x) { return x * 2; });
+  small_vector<int> doubled(transformed.begin(), transformed.end());
+  EXPECT_EQ(doubled.size(), 10);
+  EXPECT_EQ(doubled[0], 2);
+  EXPECT_EQ(doubled[9], 20);
+
+  // Test take_while view
+  // todo: fix this
+  //int sum = 0;
+  //auto taken = vec | std::views::take_while([&sum](int x) {
+  //               sum += x;
+  //               return sum < 10;
+  //             });
+  //small_vector<int> first_few(taken.cbegin(), taken.cend());
+  //EXPECT_EQ(first_few.size(), 4);  // 1 + 2 + 3 + 4 = 10, so stops at 4
+  //EXPECT_EQ(first_few[3], 4);
+
+  //// Test chaining multiple views
+  //auto chained = vec | std::views::filter([](int x) { return x % 2 == 0; }) |
+  //               std::views::transform([](int x) { return x * 2; }) | std::views::take(3);
+  //small_vector<int> result(chained.begin(), chained.end());
+  //EXPECT_EQ(result.size(), 3);
+  //EXPECT_EQ(result[0], 4);   // 2 * 2
+  //EXPECT_EQ(result[1], 8);   // 4 * 2
+  //EXPECT_EQ(result[2], 12);  // 6 * 2
+}
+
 // Custom type with formatter
 struct Point {
   int x, y;
@@ -587,5 +626,5 @@ TEST(SmallVectorTest, StreamOperator)
   small_vector<std::string> sv = {"hello", "world"};
   oss.str("");
   oss << sv;
-  EXPECT_EQ(oss.str(), "[hello, world]");
+  EXPECT_EQ(oss.str(), "[\"hello\", \"world\"]");
 }

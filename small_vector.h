@@ -224,6 +224,22 @@ template<typename T, size_t InlineCapacity = 16> class small_vector {
     return const_reverse_iterator(begin());
   }
 
+  // Enable view interface
+  template<std::ranges::range R>
+    requires std::convertible_to<std::ranges::range_value_t<R>, T>
+  constexpr small_vector &operator=(R &&r)
+  {
+    assign(std::ranges::begin(r), std::ranges::end(r));
+    return *this;
+  }
+
+  //template<std::ranges::range R>
+  //  requires std::convertible_to<std::ranges::range_value_t<R>, T>
+  //constexpr small_vector(R &&r)
+  //{
+  //  assign(std::ranges::begin(r), std::ranges::end(r));
+  //}
+
   // Capacity
   [[nodiscard]] constexpr bool empty() const noexcept
   {
