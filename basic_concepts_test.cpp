@@ -29,38 +29,38 @@ int freeFunc(int x, double y)
   return x + static_cast<int>(y);
 }
 
-// 1. is_formattable
+// 1. formattable
 TEST(BasicConceptsTest, Formattable)
 {
-  EXPECT_TRUE(is_formattable<int>);
-  EXPECT_TRUE(is_formattable<double>);
-  EXPECT_TRUE(is_formattable<std::string>);
+  EXPECT_TRUE(formattable<int>);
+  EXPECT_TRUE(formattable<double>);
+  EXPECT_TRUE(formattable<std::string>);
 
   struct NonFormattable {};
-  EXPECT_FALSE(is_formattable<NonFormattable>);
+  EXPECT_FALSE(formattable<NonFormattable>);
 
   struct Formattable {
     int value;
   };
 }
 
-// 2. is_ranged
+// 2. ranged_type
 TEST(BasicConceptsTest, Ranged)
 {
-  EXPECT_TRUE(is_ranged<std::vector<int>>);
-  EXPECT_TRUE(is_ranged<std::list<int>>);
-  EXPECT_TRUE(is_ranged<std::string>);
+  EXPECT_TRUE(ranged_type<std::vector<int>>);
+  EXPECT_TRUE(ranged_type<std::list<int>>);
+  EXPECT_TRUE(ranged_type<std::string>);
 
   int arr[5];
-  EXPECT_FALSE(is_ranged<decltype(arr)>);
+  EXPECT_FALSE(ranged_type<decltype(arr)>);
 
   struct NonRange {};
-  EXPECT_FALSE(is_ranged<NonRange>);
-  EXPECT_FALSE(is_ranged<int>);
+  EXPECT_FALSE(ranged_type<NonRange>);
+  EXPECT_FALSE(ranged_type<int>);
   // todo: but if we try std::begin(small_vector<int>) in the concept definition, it will be false
   // and actually this phrase won't compile
-  EXPECT_TRUE((is_ranged<small_vector<int, 10>>));
-  EXPECT_TRUE((is_ranged<small_vector<NonRange, 10>>));
+  EXPECT_TRUE((ranged_type<small_vector<int, 10>>));
+  EXPECT_TRUE((ranged_type<small_vector<NonRange, 10>>));
 }
 
 // 3. function_traits
@@ -95,25 +95,25 @@ TEST(BasicConceptsTest, ConstMemberFunctionTraits)
 
 TEST(BasicConceptsTest, CompoundTests)
 {
-  EXPECT_TRUE(is_formattable<std::string>);
-  EXPECT_TRUE(is_ranged<std::string>);
+  EXPECT_TRUE(formattable<std::string>);
+  EXPECT_TRUE(ranged_type<std::string>);
 
   auto lambda = [](int x) -> std::string { return std::to_string(x); };
   using LambdaType = decltype(lambda);
 
-  EXPECT_TRUE((is_formattable<std::invoke_result_t<LambdaType, int>>));
+  EXPECT_TRUE((formattable<std::invoke_result_t<LambdaType, int>>));
 }
 
 TEST(BasicConceptsTest, EdgeCases)
 {
   std::vector<int> empty_vec;
-  EXPECT_TRUE((is_ranged<decltype(empty_vec)>));
+  EXPECT_TRUE((ranged_type<decltype(empty_vec)>));
 
-  EXPECT_TRUE((is_formattable<const int>));
-  EXPECT_TRUE((is_ranged<const std::vector<int>>));
+  EXPECT_TRUE((formattable<const int>));
+  EXPECT_TRUE((ranged_type<const std::vector<int>>));
 
-  EXPECT_TRUE((is_formattable<int &>));
-  EXPECT_TRUE((is_ranged<std::vector<int> &>));
+  EXPECT_TRUE((formattable<int &>));
+  EXPECT_TRUE((ranged_type<std::vector<int> &>));
 }
 
 TEST(BasicConceptsTest, LambdaAndFunctorTraits)
@@ -200,15 +200,17 @@ TEST(BasicConceptsTest, ReferenceQualifiedMemberFunctionTraits)
     EXPECT_TRUE((std::is_same_v<LvalueTraits::result_type, void>));
     EXPECT_TRUE((std::is_same_v<LvalueTraits::args_tuple, std::tuple<>>));
     EXPECT_TRUE((std::is_same_v<LvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(LvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(LvalueTraits::qualifiers, function_qualifiers::is_lvalue);
     EXPECT_EQ(LvalueTraits::arity, 0);
-    EXPECT_FALSE(LvalueTraits::is_variadic);
 
     using RvalueTraits = function_traits<decltype(&RefQualifiedMethods::rvalueMethod)>;
     EXPECT_TRUE((std::is_same_v<RvalueTraits::result_type, void>));
     EXPECT_TRUE((std::is_same_v<RvalueTraits::args_tuple, std::tuple<>>));
     EXPECT_TRUE((std::is_same_v<RvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(RvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(RvalueTraits::qualifiers, function_qualifiers::is_rvalue);
     EXPECT_EQ(RvalueTraits::arity, 0);
-    EXPECT_FALSE(RvalueTraits::is_variadic);
   }
 
   // 测试 const + 引用限定符
@@ -217,15 +219,19 @@ TEST(BasicConceptsTest, ReferenceQualifiedMemberFunctionTraits)
     EXPECT_TRUE((std::is_same_v<ConstLvalueTraits::result_type, void>));
     EXPECT_TRUE((std::is_same_v<ConstLvalueTraits::args_tuple, std::tuple<>>));
     EXPECT_TRUE((std::is_same_v<ConstLvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(ConstLvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(ConstLvalueTraits::qualifiers,
+              function_qualifiers::is_const | function_qualifiers::is_lvalue);
     EXPECT_EQ(ConstLvalueTraits::arity, 0);
-    EXPECT_FALSE(ConstLvalueTraits::is_variadic);
 
     using ConstRvalueTraits = function_traits<decltype(&RefQualifiedMethods::constRvalueMethod)>;
     EXPECT_TRUE((std::is_same_v<ConstRvalueTraits::result_type, void>));
     EXPECT_TRUE((std::is_same_v<ConstRvalueTraits::args_tuple, std::tuple<>>));
     EXPECT_TRUE((std::is_same_v<ConstRvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(ConstRvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(ConstRvalueTraits::qualifiers,
+              function_qualifiers::is_const | function_qualifiers::is_rvalue);
     EXPECT_EQ(ConstRvalueTraits::arity, 0);
-    EXPECT_FALSE(ConstRvalueTraits::is_variadic);
   }
 
   // 测试 volatile + 引用限定符
@@ -235,16 +241,20 @@ TEST(BasicConceptsTest, ReferenceQualifiedMemberFunctionTraits)
     EXPECT_TRUE((std::is_same_v<VolatileLvalueTraits::result_type, void>));
     EXPECT_TRUE((std::is_same_v<VolatileLvalueTraits::args_tuple, std::tuple<>>));
     EXPECT_TRUE((std::is_same_v<VolatileLvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(VolatileLvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(VolatileLvalueTraits::qualifiers,
+              function_qualifiers::is_volatile | function_qualifiers::is_lvalue);
     EXPECT_EQ(VolatileLvalueTraits::arity, 0);
-    EXPECT_FALSE(VolatileLvalueTraits::is_variadic);
 
     using VolatileRvalueTraits =
         function_traits<decltype(&RefQualifiedMethods::volatileRvalueMethod)>;
     EXPECT_TRUE((std::is_same_v<VolatileRvalueTraits::result_type, void>));
     EXPECT_TRUE((std::is_same_v<VolatileRvalueTraits::args_tuple, std::tuple<>>));
     EXPECT_TRUE((std::is_same_v<VolatileRvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(VolatileRvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(VolatileRvalueTraits::qualifiers,
+              function_qualifiers::is_volatile | function_qualifiers::is_rvalue);
     EXPECT_EQ(VolatileRvalueTraits::arity, 0);
-    EXPECT_FALSE(VolatileRvalueTraits::is_variadic);
   }
 
   // 测试 const volatile + 引用限定符
@@ -254,16 +264,22 @@ TEST(BasicConceptsTest, ReferenceQualifiedMemberFunctionTraits)
     EXPECT_TRUE((std::is_same_v<ConstVolatileLvalueTraits::result_type, void>));
     EXPECT_TRUE((std::is_same_v<ConstVolatileLvalueTraits::args_tuple, std::tuple<>>));
     EXPECT_TRUE((std::is_same_v<ConstVolatileLvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(ConstVolatileLvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(ConstVolatileLvalueTraits::qualifiers,
+              function_qualifiers::is_const | function_qualifiers::is_volatile |
+                  function_qualifiers::is_lvalue);
     EXPECT_EQ(ConstVolatileLvalueTraits::arity, 0);
-    EXPECT_FALSE(ConstVolatileLvalueTraits::is_variadic);
 
     using ConstVolatileRvalueTraits =
         function_traits<decltype(&RefQualifiedMethods::constVolatileRvalueMethod)>;
     EXPECT_TRUE((std::is_same_v<ConstVolatileRvalueTraits::result_type, void>));
     EXPECT_TRUE((std::is_same_v<ConstVolatileRvalueTraits::args_tuple, std::tuple<>>));
     EXPECT_TRUE((std::is_same_v<ConstVolatileRvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(ConstVolatileRvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(ConstVolatileRvalueTraits::qualifiers,
+              function_qualifiers::is_const | function_qualifiers::is_volatile |
+                  function_qualifiers::is_rvalue);
     EXPECT_EQ(ConstVolatileRvalueTraits::arity, 0);
-    EXPECT_FALSE(ConstVolatileRvalueTraits::is_variadic);
   }
 
   // 测试可变参数 + 引用限定符
@@ -273,16 +289,20 @@ TEST(BasicConceptsTest, ReferenceQualifiedMemberFunctionTraits)
     EXPECT_TRUE((std::is_same_v<VariadicLvalueTraits::result_type, void>));
     EXPECT_TRUE((std::is_same_v<VariadicLvalueTraits::args_tuple, std::tuple<const char *>>));
     EXPECT_TRUE((std::is_same_v<VariadicLvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(VariadicLvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(VariadicLvalueTraits::qualifiers,
+              function_qualifiers::is_variadic | function_qualifiers::is_lvalue);
     EXPECT_EQ(VariadicLvalueTraits::arity, 1);
-    EXPECT_TRUE(VariadicLvalueTraits::is_variadic);
 
     using VariadicRvalueTraits =
         function_traits<decltype(&RefQualifiedMethods::variadicRvalueMethod)>;
     EXPECT_TRUE((std::is_same_v<VariadicRvalueTraits::result_type, void>));
     EXPECT_TRUE((std::is_same_v<VariadicRvalueTraits::args_tuple, std::tuple<const char *>>));
     EXPECT_TRUE((std::is_same_v<VariadicRvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(VariadicRvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(VariadicRvalueTraits::qualifiers,
+              function_qualifiers::is_variadic | function_qualifiers::is_rvalue);
     EXPECT_EQ(VariadicRvalueTraits::arity, 1);
-    EXPECT_TRUE(VariadicRvalueTraits::is_variadic);
   }
 
   // 测试 const + 可变参数 + 引用限定符
@@ -292,16 +312,22 @@ TEST(BasicConceptsTest, ReferenceQualifiedMemberFunctionTraits)
     EXPECT_TRUE((std::is_same_v<ConstVariadicLvalueTraits::result_type, void>));
     EXPECT_TRUE((std::is_same_v<ConstVariadicLvalueTraits::args_tuple, std::tuple<const char *>>));
     EXPECT_TRUE((std::is_same_v<ConstVariadicLvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(ConstVariadicLvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(ConstVariadicLvalueTraits::qualifiers,
+              function_qualifiers::is_const | function_qualifiers::is_variadic |
+                  function_qualifiers::is_lvalue);
     EXPECT_EQ(ConstVariadicLvalueTraits::arity, 1);
-    EXPECT_TRUE(ConstVariadicLvalueTraits::is_variadic);
 
     using ConstVariadicRvalueTraits =
         function_traits<decltype(&RefQualifiedMethods::constVariadicRvalueMethod)>;
     EXPECT_TRUE((std::is_same_v<ConstVariadicRvalueTraits::result_type, void>));
     EXPECT_TRUE((std::is_same_v<ConstVariadicRvalueTraits::args_tuple, std::tuple<const char *>>));
     EXPECT_TRUE((std::is_same_v<ConstVariadicRvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(ConstVariadicRvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(ConstVariadicRvalueTraits::qualifiers,
+              function_qualifiers::is_const | function_qualifiers::is_variadic |
+                  function_qualifiers::is_rvalue);
     EXPECT_EQ(ConstVariadicRvalueTraits::arity, 1);
-    EXPECT_TRUE(ConstVariadicRvalueTraits::is_variadic);
   }
 
   // 测试 volatile + 可变参数 + 引用限定符
@@ -312,8 +338,11 @@ TEST(BasicConceptsTest, ReferenceQualifiedMemberFunctionTraits)
     EXPECT_TRUE(
         (std::is_same_v<VolatileVariadicLvalueTraits::args_tuple, std::tuple<const char *>>));
     EXPECT_TRUE((std::is_same_v<VolatileVariadicLvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(VolatileVariadicLvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(VolatileVariadicLvalueTraits::qualifiers,
+              function_qualifiers::is_volatile | function_qualifiers::is_variadic |
+                  function_qualifiers::is_lvalue);
     EXPECT_EQ(VolatileVariadicLvalueTraits::arity, 1);
-    EXPECT_TRUE(VolatileVariadicLvalueTraits::is_variadic);
 
     using VolatileVariadicRvalueTraits =
         function_traits<decltype(&RefQualifiedMethods::volatileVariadicRvalueMethod)>;
@@ -321,8 +350,11 @@ TEST(BasicConceptsTest, ReferenceQualifiedMemberFunctionTraits)
     EXPECT_TRUE(
         (std::is_same_v<VolatileVariadicRvalueTraits::args_tuple, std::tuple<const char *>>));
     EXPECT_TRUE((std::is_same_v<VolatileVariadicRvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(VolatileVariadicRvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(VolatileVariadicRvalueTraits::qualifiers,
+              function_qualifiers::is_volatile | function_qualifiers::is_variadic |
+                  function_qualifiers::is_rvalue);
     EXPECT_EQ(VolatileVariadicRvalueTraits::arity, 1);
-    EXPECT_TRUE(VolatileVariadicRvalueTraits::is_variadic);
   }
 
   // 测试 const volatile + 可变参数 + 引用限定符
@@ -334,8 +366,11 @@ TEST(BasicConceptsTest, ReferenceQualifiedMemberFunctionTraits)
         (std::is_same_v<ConstVolatileVariadicLvalueTraits::args_tuple, std::tuple<const char *>>));
     EXPECT_TRUE(
         (std::is_same_v<ConstVolatileVariadicLvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(ConstVolatileVariadicLvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(ConstVolatileVariadicLvalueTraits::qualifiers,
+              function_qualifiers::is_const | function_qualifiers::is_volatile |
+                  function_qualifiers::is_variadic | function_qualifiers::is_lvalue);
     EXPECT_EQ(ConstVolatileVariadicLvalueTraits::arity, 1);
-    EXPECT_TRUE(ConstVolatileVariadicLvalueTraits::is_variadic);
 
     using ConstVolatileVariadicRvalueTraits =
         function_traits<decltype(&RefQualifiedMethods::constVolatileVariadicRvalueMethod)>;
@@ -344,8 +379,246 @@ TEST(BasicConceptsTest, ReferenceQualifiedMemberFunctionTraits)
         (std::is_same_v<ConstVolatileVariadicRvalueTraits::args_tuple, std::tuple<const char *>>));
     EXPECT_TRUE(
         (std::is_same_v<ConstVolatileVariadicRvalueTraits::class_type, RefQualifiedMethods>));
+    EXPECT_EQ(ConstVolatileVariadicRvalueTraits::type, function_type::member_function);
+    EXPECT_EQ(ConstVolatileVariadicRvalueTraits::qualifiers,
+              function_qualifiers::is_const | function_qualifiers::is_volatile |
+                  function_qualifiers::is_variadic | function_qualifiers::is_rvalue);
     EXPECT_EQ(ConstVolatileVariadicRvalueTraits::arity, 1);
-    EXPECT_TRUE(ConstVolatileVariadicRvalueTraits::is_variadic);
+  }
+}
+
+static void freeFunc(int) {}
+
+TEST(BasicConceptsTest, FunctionTypeTraits)
+{
+  struct TestClass {
+    void memberFunc() {}
+    void constMemberFunc() const {}
+    void volatileMemberFunc() volatile {}
+    void lvalueFunc() & {}
+    void rvalueFunc() && {}
+    void constLvalueFunc() const & {}
+    void constRvalueFunc() const && {}
+    void variadicFunc(const char *fmt, ...) {}
+  };
+
+  // 自由函数
+
+  // EXPECT_EQ(function_traits<decltype(&freeFunc)>::type, function_type::free_function);
+  // EXPECT_EQ(function_traits<decltype(&freeFunc)>::qualifiers, function_qualifiers::none);
+
+  // 成员函数
+  EXPECT_EQ(function_traits<decltype(&TestClass::memberFunc)>::type,
+            function_type::member_function);
+  EXPECT_EQ(function_traits<decltype(&TestClass::memberFunc)>::qualifiers,
+            function_qualifiers::none);
+
+  // const 成员函数
+  EXPECT_EQ(function_traits<decltype(&TestClass::constMemberFunc)>::type,
+            function_type::member_function);
+  EXPECT_TRUE(has_qualifier(function_traits<decltype(&TestClass::constMemberFunc)>::qualifiers,
+                            function_qualifiers::is_const));
+
+  // volatile 成员函数
+  EXPECT_EQ(function_traits<decltype(&TestClass::volatileMemberFunc)>::type,
+            function_type::member_function);
+  EXPECT_TRUE(has_qualifier(function_traits<decltype(&TestClass::volatileMemberFunc)>::qualifiers,
+                            function_qualifiers::is_volatile));
+
+  // 左值引用成员函数
+  EXPECT_EQ(function_traits<decltype(&TestClass::lvalueFunc)>::type,
+            function_type::member_function);
+  EXPECT_TRUE(has_qualifier(function_traits<decltype(&TestClass::lvalueFunc)>::qualifiers,
+                            function_qualifiers::is_lvalue));
+
+  // 右值引用成员函数
+  EXPECT_EQ(function_traits<decltype(&TestClass::rvalueFunc)>::type,
+            function_type::member_function);
+  EXPECT_TRUE(has_qualifier(function_traits<decltype(&TestClass::rvalueFunc)>::qualifiers,
+                            function_qualifiers::is_rvalue));
+
+  // const 左值引用成员函数
+  EXPECT_EQ(function_traits<decltype(&TestClass::constLvalueFunc)>::type,
+            function_type::member_function);
+  EXPECT_TRUE(has_qualifier(function_traits<decltype(&TestClass::constLvalueFunc)>::qualifiers,
+                            function_qualifiers::is_const));
+  EXPECT_TRUE(has_qualifier(function_traits<decltype(&TestClass::constLvalueFunc)>::qualifiers,
+                            function_qualifiers::is_lvalue));
+
+  // const 右值引用成员函数
+  EXPECT_EQ(function_traits<decltype(&TestClass::constRvalueFunc)>::type,
+            function_type::member_function);
+  EXPECT_TRUE(has_qualifier(function_traits<decltype(&TestClass::constRvalueFunc)>::qualifiers,
+                            function_qualifiers::is_const));
+  EXPECT_TRUE(has_qualifier(function_traits<decltype(&TestClass::constRvalueFunc)>::qualifiers,
+                            function_qualifiers::is_rvalue));
+
+  // 可变参数成员函数
+  EXPECT_EQ(function_traits<decltype(&TestClass::variadicFunc)>::type,
+            function_type::member_function);
+  EXPECT_TRUE(has_qualifier(function_traits<decltype(&TestClass::variadicFunc)>::qualifiers,
+                            function_qualifiers::is_variadic));
+};
+
+TEST(BasicConceptsTest, LambdaAndFunctorTraits2)
+{
+  // 无捕获 lambda
+  auto lambda1 = []() {};
+  EXPECT_EQ(function_traits<decltype(lambda1)>::type, function_type::lambda);
+  EXPECT_EQ(function_traits<decltype(lambda1)>::qualifiers, function_qualifiers::none);
+
+  // 有捕获 lambda
+  int x = 0;
+  auto lambda2 = [x]() {};
+  EXPECT_EQ(function_traits<decltype(lambda2)>::type, function_type::lambda);
+  EXPECT_TRUE(has_qualifier(function_traits<decltype(lambda2)>::qualifiers,
+                            function_qualifiers::has_capture));
+
+  // 函数对象
+  struct Functor {
+    void operator()() {}
+  };
+  EXPECT_EQ(function_traits<Functor>::type, function_type::functor);
+  EXPECT_EQ(function_traits<Functor>::qualifiers, function_qualifiers::none);
+}
+
+TEST(BasicConceptsTest, ConceptTests)
+{
+  struct TestClass {
+    void memberFunc() {}
+    void constFunc() const {}
+    void volatileFunc() volatile {}
+    void lvalueFunc() & {}
+    void rvalueFunc() && {}
+    void variadicFunc(const char *fmt, ...) {}
+  };
+
+  auto lambda = []() {};
+  struct Functor {
+    void operator()() {}
+  };
+
+  // 函数类型概念测试
+  // EXPECT_TRUE(free_function<decltype(&freeFunc)>);
+  EXPECT_TRUE(member_function<decltype(&TestClass::memberFunc)>);
+  EXPECT_TRUE(lambda_function<decltype(lambda)>);  // todo: bad
+  EXPECT_TRUE(functor<Functor>);
+
+  // 函数限定符概念测试
+  EXPECT_TRUE(const_function<decltype(&TestClass::constFunc)>);
+  EXPECT_TRUE(volatile_function<decltype(&TestClass::volatileFunc)>);
+  EXPECT_TRUE(lvalue_function<decltype(&TestClass::lvalueFunc)>);
+  EXPECT_TRUE(rvalue_function<decltype(&TestClass::rvalueFunc)>);
+  EXPECT_TRUE(variadic_function<decltype(&TestClass::variadicFunc)>);
+}
+
+TEST(BasicConceptsTest, QualifiedMemberFunctionTraits)
+{
+  struct QualifiedMethods {
+    void basicMethod() {}
+    void constMethod() const {}
+    void volatileMethod() volatile {}
+    void constVolatileMethod() const volatile {}
+    void variadicMethod(const char *fmt, ...) {}
+    void constVariadicMethod(const char *fmt, ...) const {}
+    void volatileVariadicMethod(const char *fmt, ...) volatile {}
+    void constVolatileVariadicMethod(const char *fmt, ...) const volatile {}
+  };
+
+  // 基本成员函数
+  {
+    using BasicTraits = function_traits<decltype(&QualifiedMethods::basicMethod)>;
+    EXPECT_TRUE((std::is_same_v<BasicTraits::result_type, void>));
+    EXPECT_TRUE((std::is_same_v<BasicTraits::args_tuple, std::tuple<>>));
+    EXPECT_TRUE((std::is_same_v<BasicTraits::class_type, QualifiedMethods>));
+    EXPECT_EQ(BasicTraits::type, function_type::member_function);
+    EXPECT_EQ(BasicTraits::qualifiers, function_qualifiers::none);
+    EXPECT_EQ(BasicTraits::arity, 0);
+  }
+
+  // const 成员函数
+  {
+    using ConstTraits = function_traits<decltype(&QualifiedMethods::constMethod)>;
+    EXPECT_TRUE((std::is_same_v<ConstTraits::result_type, void>));
+    EXPECT_TRUE((std::is_same_v<ConstTraits::args_tuple, std::tuple<>>));
+    EXPECT_TRUE((std::is_same_v<ConstTraits::class_type, QualifiedMethods>));
+    EXPECT_EQ(ConstTraits::type, function_type::member_function);
+    EXPECT_EQ(ConstTraits::qualifiers, function_qualifiers::is_const);
+    EXPECT_EQ(ConstTraits::arity, 0);
+  }
+
+  // volatile 成员函数
+  {
+    using VolatileTraits = function_traits<decltype(&QualifiedMethods::volatileMethod)>;
+    EXPECT_TRUE((std::is_same_v<VolatileTraits::result_type, void>));
+    EXPECT_TRUE((std::is_same_v<VolatileTraits::args_tuple, std::tuple<>>));
+    EXPECT_TRUE((std::is_same_v<VolatileTraits::class_type, QualifiedMethods>));
+    EXPECT_EQ(VolatileTraits::type, function_type::member_function);
+    EXPECT_EQ(VolatileTraits::qualifiers, function_qualifiers::is_volatile);
+    EXPECT_EQ(VolatileTraits::arity, 0);
+  }
+
+  // const volatile 成员函数
+  {
+    using ConstVolatileTraits = function_traits<decltype(&QualifiedMethods::constVolatileMethod)>;
+    EXPECT_TRUE((std::is_same_v<ConstVolatileTraits::result_type, void>));
+    EXPECT_TRUE((std::is_same_v<ConstVolatileTraits::args_tuple, std::tuple<>>));
+    EXPECT_TRUE((std::is_same_v<ConstVolatileTraits::class_type, QualifiedMethods>));
+    EXPECT_EQ(ConstVolatileTraits::type, function_type::member_function);
+    EXPECT_EQ(ConstVolatileTraits::qualifiers,
+              function_qualifiers::is_const | function_qualifiers::is_volatile);
+    EXPECT_EQ(ConstVolatileTraits::arity, 0);
+  }
+
+  // 可变参数成员函数
+  {
+    using VariadicTraits = function_traits<decltype(&QualifiedMethods::variadicMethod)>;
+    EXPECT_TRUE((std::is_same_v<VariadicTraits::result_type, void>));
+    EXPECT_TRUE((std::is_same_v<VariadicTraits::args_tuple, std::tuple<const char *>>));
+    EXPECT_TRUE((std::is_same_v<VariadicTraits::class_type, QualifiedMethods>));
+    EXPECT_EQ(VariadicTraits::type, function_type::member_function);
+    EXPECT_EQ(VariadicTraits::qualifiers, function_qualifiers::is_variadic);
+    EXPECT_EQ(VariadicTraits::arity, 1);
+  }
+
+  // const 可变参数成员函数
+  {
+    using ConstVariadicTraits = function_traits<decltype(&QualifiedMethods::constVariadicMethod)>;
+    EXPECT_TRUE((std::is_same_v<ConstVariadicTraits::result_type, void>));
+    EXPECT_TRUE((std::is_same_v<ConstVariadicTraits::args_tuple, std::tuple<const char *>>));
+    EXPECT_TRUE((std::is_same_v<ConstVariadicTraits::class_type, QualifiedMethods>));
+    EXPECT_EQ(ConstVariadicTraits::type, function_type::member_function);
+    EXPECT_EQ(ConstVariadicTraits::qualifiers,
+              function_qualifiers::is_const | function_qualifiers::is_variadic);
+    EXPECT_EQ(ConstVariadicTraits::arity, 1);
+  }
+
+  // volatile 可变参数成员函数
+  {
+    using VolatileVariadicTraits =
+        function_traits<decltype(&QualifiedMethods::volatileVariadicMethod)>;
+    EXPECT_TRUE((std::is_same_v<VolatileVariadicTraits::result_type, void>));
+    EXPECT_TRUE((std::is_same_v<VolatileVariadicTraits::args_tuple, std::tuple<const char *>>));
+    EXPECT_TRUE((std::is_same_v<VolatileVariadicTraits::class_type, QualifiedMethods>));
+    EXPECT_EQ(VolatileVariadicTraits::type, function_type::member_function);
+    EXPECT_EQ(VolatileVariadicTraits::qualifiers,
+              function_qualifiers::is_volatile | function_qualifiers::is_variadic);
+    EXPECT_EQ(VolatileVariadicTraits::arity, 1);
+  }
+
+  // const volatile 可变参数成员函数
+  {
+    using ConstVolatileVariadicTraits =
+        function_traits<decltype(&QualifiedMethods::constVolatileVariadicMethod)>;
+    EXPECT_TRUE((std::is_same_v<ConstVolatileVariadicTraits::result_type, void>));
+    EXPECT_TRUE(
+        (std::is_same_v<ConstVolatileVariadicTraits::args_tuple, std::tuple<const char *>>));
+    EXPECT_TRUE((std::is_same_v<ConstVolatileVariadicTraits::class_type, QualifiedMethods>));
+    EXPECT_EQ(ConstVolatileVariadicTraits::type, function_type::member_function);
+    EXPECT_EQ(ConstVolatileVariadicTraits::qualifiers,
+              function_qualifiers::is_const | function_qualifiers::is_volatile |
+                  function_qualifiers::is_variadic);
+    EXPECT_EQ(ConstVolatileVariadicTraits::arity, 1);
   }
 }
 
@@ -353,18 +626,17 @@ int printf_like(const char *fmt, ...)
 {
   return 0;
 }
-
 TEST(BasicConceptsTest, VariadicFunctionTraits)
 {
   // C 风格可变参数函数
-
   using PrintfLikeType = decltype(&printf_like);
   using PrintfTraits = function_traits<PrintfLikeType>;
 
   EXPECT_TRUE((std::is_same_v<PrintfTraits::result_type, int>));
   EXPECT_TRUE((std::is_same_v<PrintfTraits::args_tuple, std::tuple<const char *>>));
   EXPECT_EQ(PrintfTraits::arity, 1);
-  EXPECT_TRUE(PrintfTraits::is_variadic);
+  EXPECT_EQ(PrintfTraits::qualifiers & function_qualifiers::is_variadic,
+            function_qualifiers::is_variadic);
 
   // 可变参数成员函数
   struct VariadicClass {
@@ -378,7 +650,8 @@ TEST(BasicConceptsTest, VariadicFunctionTraits)
   EXPECT_TRUE((std::is_same_v<VariadicMethodTraits::args_tuple, std::tuple<const char *>>));
   EXPECT_TRUE((std::is_same_v<VariadicMethodTraits::class_type, VariadicClass>));
   EXPECT_EQ(VariadicMethodTraits::arity, 1);
-  EXPECT_TRUE(VariadicMethodTraits::is_variadic);
+  EXPECT_EQ(VariadicMethodTraits::qualifiers & function_qualifiers::is_variadic,
+            function_qualifiers::is_variadic);
 
   // const 可变参数成员函数
   using ConstVariadicMethodTraits = function_traits<decltype(&VariadicClass::const_printf_like)>;
@@ -386,7 +659,8 @@ TEST(BasicConceptsTest, VariadicFunctionTraits)
   EXPECT_TRUE((std::is_same_v<ConstVariadicMethodTraits::args_tuple, std::tuple<const char *>>));
   EXPECT_TRUE((std::is_same_v<ConstVariadicMethodTraits::class_type, VariadicClass>));
   EXPECT_EQ(ConstVariadicMethodTraits::arity, 1);
-  EXPECT_TRUE(ConstVariadicMethodTraits::is_variadic);
+  EXPECT_EQ(ConstVariadicMethodTraits::qualifiers & function_qualifiers::is_variadic,
+            function_qualifiers::is_variadic);
 
   // 标准库可变参数函数
   using StdPrintfType = decltype(&std::printf);
@@ -394,7 +668,8 @@ TEST(BasicConceptsTest, VariadicFunctionTraits)
   EXPECT_TRUE((std::is_same_v<StdPrintfTraits::result_type, int>));
   EXPECT_TRUE((std::is_same_v<StdPrintfTraits::args_tuple, std::tuple<const char *>>));
   EXPECT_EQ(StdPrintfTraits::arity, 1);
-  EXPECT_TRUE(StdPrintfTraits::is_variadic);
+  EXPECT_EQ(StdPrintfTraits::qualifiers & function_qualifiers::is_variadic,
+            function_qualifiers::is_variadic);
 }
 
 TEST(BasicConceptsTest, FunctionReferenceAndPointerTraits)
@@ -415,7 +690,7 @@ TEST(BasicConceptsTest, FunctionReferenceAndPointerTraits)
   EXPECT_EQ(MemFuncPtrTraits::arity, 1);
 }
 
-TEST(BasicConceptsTest, QualifiedMemberFunctionTraits)
+TEST(BasicConceptsTest, QualifiedMemberFunctionTraits2)
 {
   struct QualifiedMethods {
     void constMethod() const {}
@@ -434,7 +709,7 @@ TEST(BasicConceptsTest, QualifiedMemberFunctionTraits)
   EXPECT_TRUE((std::is_same_v<ConstMethodTraits::args_tuple, std::tuple<>>));
   EXPECT_TRUE((std::is_same_v<ConstMethodTraits::class_type, QualifiedMethods>));
   EXPECT_EQ(ConstMethodTraits::arity, 0);
-  EXPECT_FALSE((ConstMethodTraits::is_variadic));
+  EXPECT_FALSE(has_qualifier(ConstMethodTraits::qualifiers, function_qualifiers::is_variadic));
 
   // volatile 方法
   using VolatileMethodTraits = function_traits<decltype(&QualifiedMethods::volatileMethod)>;
@@ -442,7 +717,7 @@ TEST(BasicConceptsTest, QualifiedMemberFunctionTraits)
   EXPECT_TRUE((std::is_same_v<VolatileMethodTraits::args_tuple, std::tuple<>>));
   EXPECT_TRUE((std::is_same_v<VolatileMethodTraits::class_type, QualifiedMethods>));
   EXPECT_EQ(VolatileMethodTraits::arity, 0);
-  EXPECT_FALSE(VolatileMethodTraits::is_variadic);
+  EXPECT_FALSE(has_qualifier(VolatileMethodTraits::qualifiers, function_qualifiers::is_variadic));
 
   // const volatile 方法
   using ConstVolatileMethodTraits =
@@ -451,7 +726,8 @@ TEST(BasicConceptsTest, QualifiedMemberFunctionTraits)
   EXPECT_TRUE((std::is_same_v<ConstVolatileMethodTraits::args_tuple, std::tuple<>>));
   EXPECT_TRUE((std::is_same_v<ConstVolatileMethodTraits::class_type, QualifiedMethods>));
   EXPECT_EQ(ConstVolatileMethodTraits::arity, 0);
-  EXPECT_FALSE(ConstVolatileMethodTraits::is_variadic);
+  EXPECT_FALSE(
+      has_qualifier(ConstVolatileMethodTraits::qualifiers, function_qualifiers::is_variadic));
 
   // volatile 可变参数方法
   using VolatileVariadicMethodTraits =
@@ -461,7 +737,8 @@ TEST(BasicConceptsTest, QualifiedMemberFunctionTraits)
       (std::is_same_v<VolatileVariadicMethodTraits::args_tuple, std::tuple<const char *>>));
   EXPECT_TRUE((std::is_same_v<VolatileVariadicMethodTraits::class_type, QualifiedMethods>));
   EXPECT_EQ(VolatileVariadicMethodTraits::arity, 1);
-  EXPECT_TRUE(VolatileVariadicMethodTraits::is_variadic);
+  EXPECT_TRUE(
+      has_qualifier(VolatileVariadicMethodTraits::qualifiers, function_qualifiers::is_variadic));
 
   // const volatile 可变参数方法
   using ConstVolatileVariadicMethodTraits =
@@ -471,7 +748,8 @@ TEST(BasicConceptsTest, QualifiedMemberFunctionTraits)
       (std::is_same_v<ConstVolatileVariadicMethodTraits::args_tuple, std::tuple<const char *>>));
   EXPECT_TRUE((std::is_same_v<ConstVolatileVariadicMethodTraits::class_type, QualifiedMethods>));
   EXPECT_EQ(ConstVolatileVariadicMethodTraits::arity, 1);
-  EXPECT_TRUE(ConstVolatileVariadicMethodTraits::is_variadic);
+  EXPECT_TRUE(has_qualifier(ConstVolatileVariadicMethodTraits::qualifiers,
+                            function_qualifiers::is_variadic));
 }
 
 TEST(BasicConceptsTest, ComplexReturnTypeTraits)
@@ -506,4 +784,69 @@ TEST(BasicConceptsTest, ComplexReturnTypeTraits)
 
   using DecltypeReturnTraits = function_traits<decltype(&ComplexReturnTypes::returnDecltype)>;
   EXPECT_TRUE((std::is_same_v<DecltypeReturnTraits::result_type, std::string>));
+}
+
+// noexcept 测试类
+class NoexceptTestClass {
+ public:
+  void noexceptFunc() noexcept {}
+  void constNoexceptFunc() const noexcept {}
+  void volatileNoexceptFunc() volatile noexcept {}
+  void constVolatileNoexceptFunc() const volatile noexcept {}
+  void lvalueNoexceptFunc() & noexcept {}
+  void rvalueNoexceptFunc() && noexcept {}
+  void constLvalueNoexceptFunc() const & noexcept {}
+  void constRvalueNoexceptFunc() const && noexcept {}
+  void variadicNoexceptFunc(const char *fmt, ...) noexcept {}
+};
+
+TEST(BasicConceptsTest, NoexceptFunctionTraits)
+{
+  // 基本 noexcept 函数
+  EXPECT_TRUE(
+      has_qualifier(function_traits<decltype(&NoexceptTestClass::noexceptFunc)>::qualifiers,
+                    function_qualifiers::is_noexcept));
+
+  // const noexcept 函数
+  EXPECT_TRUE(
+      has_qualifier(function_traits<decltype(&NoexceptTestClass::constNoexceptFunc)>::qualifiers,
+                    function_qualifiers::is_const | function_qualifiers::is_noexcept));
+
+  // volatile noexcept 函数
+  EXPECT_TRUE(has_qualifier(
+      function_traits<decltype(&NoexceptTestClass::volatileNoexceptFunc)>::qualifiers,
+      function_qualifiers::is_volatile | function_qualifiers::is_noexcept));
+
+  // const volatile noexcept 函数
+  EXPECT_TRUE(has_qualifier(
+      function_traits<decltype(&NoexceptTestClass::constVolatileNoexceptFunc)>::qualifiers,
+      function_qualifiers::is_const | function_qualifiers::is_volatile |
+          function_qualifiers::is_noexcept));
+
+  // 左值引用 noexcept 函数
+  EXPECT_TRUE(
+      has_qualifier(function_traits<decltype(&NoexceptTestClass::lvalueNoexceptFunc)>::qualifiers,
+                    function_qualifiers::is_lvalue | function_qualifiers::is_noexcept));
+
+  // 右值引用 noexcept 函数
+  EXPECT_TRUE(
+      has_qualifier(function_traits<decltype(&NoexceptTestClass::rvalueNoexceptFunc)>::qualifiers,
+                    function_qualifiers::is_rvalue | function_qualifiers::is_noexcept));
+
+  // const 左值引用 noexcept 函数
+  EXPECT_TRUE(has_qualifier(
+      function_traits<decltype(&NoexceptTestClass::constLvalueNoexceptFunc)>::qualifiers,
+      function_qualifiers::is_const | function_qualifiers::is_lvalue |
+          function_qualifiers::is_noexcept));
+
+  // const 右值引用 noexcept 函数
+  EXPECT_TRUE(has_qualifier(
+      function_traits<decltype(&NoexceptTestClass::constRvalueNoexceptFunc)>::qualifiers,
+      function_qualifiers::is_const | function_qualifiers::is_rvalue |
+          function_qualifiers::is_noexcept));
+
+  // 可变参数 noexcept 函数
+  EXPECT_TRUE(has_qualifier(
+      function_traits<decltype(&NoexceptTestClass::variadicNoexceptFunc)>::qualifiers,
+      function_qualifiers::is_variadic | function_qualifiers::is_noexcept));
 }
