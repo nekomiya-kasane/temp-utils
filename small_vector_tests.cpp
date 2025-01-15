@@ -561,7 +561,7 @@ TEST(SmallVectorTest, FormattingSupport)
   // Pretty format
   EXPECT_EQ(std::format("{:p}", v), "[\n  1,\n  2,\n  3,\n  4,\n  5\n]");
 
-  // Invalid format specifier, won't compile instead throwing a runtime execption
+  // Invalid format specifier, won't compile instead throwing a runtime exception
   // EXPECT_THROW((void)std::format("{:x}", v), std::format_error);
 
   // Empty vector

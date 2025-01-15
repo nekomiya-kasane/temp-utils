@@ -129,3 +129,16 @@ target_link_libraries(compiler_features_test
   
 gtest_discover_tests(compiler_features_test)
   
+add_executable(basic_concepts_test
+    basic_concepts.h
+    basic_concepts_test.cpp
+)
+
+target_link_libraries(basic_concepts_test
+    PRIVATE
+    GTest::gtest
+    GTest::gtest_main
+)
+  
+gtest_discover_tests(basic_concepts_test)
+  
