@@ -12,10 +12,10 @@ concept is_formattable = requires(std::format_context ctx, T value) {
 };
 
 template<typename T>
-concept is_ranged = requires {
-  std::begin(std::declval<T>());
-  std::end(std::declval<T>());
-  std::ranges::subrange(std::begin(std::declval<T>()), std::end(std::declval<T>()));
+concept is_ranged = requires (T t) {
+  std::begin(t);
+  std::end(t);
+  std::ranges::subrange(std::begin(t), std::end(t));
 };
 
 template<typename T> struct function_traits;
@@ -26,6 +26,7 @@ template<typename R, typename... Args> struct function_traits<R (*)(Args...)> {
   using result_type = R;
   using args_tuple = std::tuple<Args...>;
   static constexpr size_t arity = sizeof...(Args);
+  static constexpr bool is_variadic = false;
 };
 
 template<typename C, typename R, typename... Args> struct function_traits<R (C::*)(Args...)> {
@@ -33,6 +34,7 @@ template<typename C, typename R, typename... Args> struct function_traits<R (C::
   using args_tuple = std::tuple<Args...>;
   using class_type = C;
   static constexpr size_t arity = sizeof...(Args);
+  static constexpr bool is_variadic = false;
 };
 
 template<typename C, typename R, typename... Args>
@@ -41,6 +43,7 @@ struct function_traits<R (C::*)(Args...) const> {
   using args_tuple = std::tuple<Args...>;
   using class_type = C;
   static constexpr size_t arity = sizeof...(Args);
+  static constexpr bool is_variadic = false;
 };
 
 template<typename C, typename R, typename... Args>
@@ -269,5 +272,8 @@ struct function_traits<R (C::*)(Args..., ...) const volatile &&> {
   static constexpr size_t arity = sizeof...(Args);
   static constexpr bool is_variadic = true;
 };
+
+template<typename T>
+concept variadic_function = function_traits<T>::is_variadic;
 
 }  // namespace traits
