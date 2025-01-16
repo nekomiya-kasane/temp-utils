@@ -1,5 +1,6 @@
 #pragma once
 
+#include "long_integer.h"
 #include "unique_id.h"
 #include <array>
 #include <bit>
@@ -10,55 +11,11 @@
 #include <string_view>
 #include <type_traits>
 
-// UUID storage using two uint64_t
-struct UUIDStorage {
-    uint64_t high;
-    uint64_t low;
-
-    constexpr bool operator==(const UUIDStorage&) const = default;
-    constexpr auto operator<=>(const UUIDStorage&) const = default;
-
-    // Bitwise operations
-    constexpr UUIDStorage operator&(const UUIDStorage& other) const {
-        return {high & other.high, low & other.low};
-    }
-
-    constexpr UUIDStorage operator|(const UUIDStorage& other) const {
-        return {high | other.high, low | other.low};
-    }
-
-    constexpr UUIDStorage operator^(const UUIDStorage& other) const {
-        return {high ^ other.high, low ^ other.low};
-    }
-
-    constexpr UUIDStorage operator~() const {
-        return {~high, ~low};
-    }
-
-    constexpr UUIDStorage& operator&=(const UUIDStorage& other) {
-        high &= other.high;
-        low &= other.low;
-        return *this;
-    }
-
-    constexpr UUIDStorage& operator|=(const UUIDStorage& other) {
-        high |= other.high;
-        low |= other.low;
-        return *this;
-    }
-
-    constexpr UUIDStorage& operator^=(const UUIDStorage& other) {
-        high ^= other.high;
-        low ^= other.low;
-        return *this;
-    }
-};
-
-// UUID specialization
+// UUID specialization using uint128_t
 template<>
-class UniqueId<UUIDStorage> {
+class UniqueId<uint128_t> {
 public:
-    using value_type = UUIDStorage;
+    using value_type = uint128_t;
     static constexpr size_t size = 16;
 
     // Default constructor generates a random UUID
@@ -67,15 +24,28 @@ public:
     // Construct from high and low parts
     template<typename U>
         requires std::convertible_to<U, uint64_t>
-    constexpr UniqueId(U high, U low) : value_{static_cast<uint64_t>(high), static_cast<uint64_t>(low)} {}
+    constexpr UniqueId(U high, U low) : value_(uint128_t(static_cast<uint64_t>(high), static_cast<uint64_t>(low))) {}
+
+    // Construct from 8-4-4-4-12 format components
+    constexpr UniqueId(uint32_t time_low, uint16_t time_mid, uint16_t time_hi_and_version,
+                      uint16_t clock_seq, uint64_t node) {
+        // Combine the components into high and low 64-bit values
+        uint64_t high = (static_cast<uint64_t>(time_low) << 32) |
+                       (static_cast<uint64_t>(time_mid) << 16) |
+                       static_cast<uint64_t>(time_hi_and_version);
+        
+        uint64_t low = (static_cast<uint64_t>(clock_seq) << 48) |
+                      (node & 0x0000FFFFFFFFFFFFULL);
+        
+        value_ = uint128_t(high, low);
+    }
 
     // Construct from another UniqueId of different size (upcasting)
     template<typename U, size_t S>
         requires (S <= size)
     explicit constexpr UniqueId(const UniqueId<U, S>& other) {
         auto bytes = other.bytes();
-        value_.high = 0;
-        value_.low = 0;
+        value_ = uint128_t(0);
         std::copy_n(bytes.begin(), S, reinterpret_cast<uint8_t*>(&value_));
     }
 
@@ -85,7 +55,7 @@ public:
     explicit constexpr operator UniqueId<U, S>() const {
         UniqueId<U, S> result;
         auto src_bytes = bytes();
-        std::copy_n(src_bytes.begin(), S, reinterpret_cast<uint8_t*>(&result.value()));
+        std::copy_n(src_bytes.begin(), S, reinterpret_cast<uint8_t*>(&result.value_));
         return result;
     }
 
@@ -99,10 +69,31 @@ public:
         for (size_t i = 0; i < result.size(); ++i) {
             size_t copy_size = std::min(S, size - i * S);
             std::copy_n(src_bytes.begin() + i * S, copy_size, 
-                       reinterpret_cast<uint8_t*>(&result[i].value()));
+                       reinterpret_cast<uint8_t*>(&result[i].value_));
         }
         
         return result;
+    }
+
+    // Get UUID components in 8-4-4-4-12 format
+    constexpr uint32_t time_low() const { 
+        return static_cast<uint32_t>(value_.high >> 32); 
+    }
+    
+    constexpr uint16_t time_mid() const { 
+        return static_cast<uint16_t>(value_.high >> 16); 
+    }
+    
+    constexpr uint16_t time_hi_and_version() const { 
+        return static_cast<uint16_t>(value_.high); 
+    }
+    
+    constexpr uint16_t clock_seq() const { 
+        return static_cast<uint16_t>(value_.low >> 48); 
+    }
+    
+    constexpr uint64_t node() const { 
+        return value_.low & 0x0000FFFFFFFFFFFFULL; 
     }
 
     // Copy/move operations
@@ -114,23 +105,21 @@ public:
     // Comparison operators
     constexpr auto operator<=>(const UniqueId&) const = default;
 
-    // Get raw value
-    [[nodiscard]] constexpr const UUIDStorage& value() const noexcept { return value_; }
-    [[nodiscard]] constexpr uint64_t high() const noexcept { return value_.high; }
-    [[nodiscard]] constexpr uint64_t low() const noexcept { return value_.low; }
+    // Access the underlying value
+    constexpr const value_type& value() const { return value_; }
+    constexpr value_type& value() { return value_; }
 
     // Get raw bytes
-    [[nodiscard]] std::array<uint8_t, size> bytes() const {
+    constexpr std::array<uint8_t, size> bytes() const {
         std::array<uint8_t, size> result;
-        const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&value_);
-        std::copy_n(bytes, size, result.begin());
+        const uint8_t* ptr = reinterpret_cast<const uint8_t*>(&value_);
+        std::copy_n(ptr, size, result.begin());
         return result;
     }
 
     // Set value methods
     void setValue(uint64_t high, uint64_t low) {
-        value_.high = high;
-        value_.low = low;
+        value_ = uint128_t(high, low);
     }
 
     // Set from bytes
@@ -138,8 +127,7 @@ public:
         if (length != size) return false;
         if (!data) return false;
         
-        std::copy_n(data, 8, reinterpret_cast<uint8_t*>(&value_.high));
-        std::copy_n(data + 8, 8, reinterpret_cast<uint8_t*>(&value_.low));
+        std::copy_n(data, size, reinterpret_cast<uint8_t*>(&value_));
         return true;
     }
 
@@ -168,8 +156,7 @@ public:
             if (high_nibble == 0xFF || low_nibble == 0xFF) return false;
             low = (low << 8) | ((high_nibble << 4) | low_nibble);
         }
-        value_.high = high;
-        value_.low = low;
+        value_ = uint128_t(high, low);
         return true;
     }
 
@@ -247,36 +234,41 @@ public:
 
     // Bitwise operations with another UUID
     constexpr UniqueId operator&(const UniqueId& other) const {
-        return UniqueId(value_.high & other.value_.high, value_.low & other.value_.low);
+        UniqueId result;
+        result.value_ = value_ & other.value_;
+        return result;
     }
 
     constexpr UniqueId operator|(const UniqueId& other) const {
-        return UniqueId(value_.high | other.value_.high, value_.low | other.value_.low);
+        UniqueId result;
+        result.value_ = value_ | other.value_;
+        return result;
     }
 
     constexpr UniqueId operator^(const UniqueId& other) const {
-        return UniqueId(value_.high ^ other.value_.high, value_.low ^ other.value_.low);
+        UniqueId result;
+        result.value_ = value_ ^ other.value_;
+        return result;
     }
 
     constexpr UniqueId operator~() const {
-        return UniqueId(~value_.high, ~value_.low);
+        UniqueId result;
+        result.value_ = ~value_;
+        return result;
     }
 
     constexpr UniqueId& operator&=(const UniqueId& other) {
-        value_.high &= other.value_.high;
-        value_.low &= other.value_.low;
+        value_ &= other.value_;
         return *this;
     }
 
     constexpr UniqueId& operator|=(const UniqueId& other) {
-        value_.high |= other.value_.high;
-        value_.low |= other.value_.low;
+        value_ |= other.value_;
         return *this;
     }
 
     constexpr UniqueId& operator^=(const UniqueId& other) {
-        value_.high ^= other.value_.high;
-        value_.low ^= other.value_.low;
+        value_ ^= other.value_;
         return *this;
     }
 
@@ -284,58 +276,78 @@ public:
     template<typename U>
         requires std::is_integral_v<U>
     constexpr UniqueId operator&(U value) const {
-        return UniqueId(value_.high & value, value_.low & value);
+        UniqueId result;
+        result.value_ = value_ & value;
+        return result;
     }
 
     template<typename U>
         requires std::is_integral_v<U>
     constexpr UniqueId operator|(U value) const {
-        return UniqueId(value_.high | value, value_.low | value);
+        UniqueId result;
+        result.value_ = value_ | value;
+        return result;
     }
 
     template<typename U>
         requires std::is_integral_v<U>
     constexpr UniqueId operator^(U value) const {
-        return UniqueId(value_.high ^ value, value_.low ^ value);
+        UniqueId result;
+        result.value_ = value_ ^ value;
+        return result;
     }
 
     template<typename U>
         requires std::is_integral_v<U>
     constexpr UniqueId& operator&=(U value) {
-        value_.high &= value;
-        value_.low &= value;
+        value_ &= value;
         return *this;
     }
 
     template<typename U>
         requires std::is_integral_v<U>
     constexpr UniqueId& operator|=(U value) {
-        value_.high |= value;
-        value_.low |= value;
+        value_ |= value;
         return *this;
     }
 
     template<typename U>
         requires std::is_integral_v<U>
     constexpr UniqueId& operator^=(U value) {
-        value_.high ^= value;
-        value_.low ^= value;
+        value_ ^= value;
         return *this;
     }
 
 private:
-    UUIDStorage value_;
+    value_type value_;
+
+    // Generate a random UUID (version 4)
+    static UniqueId generate() {
+        static thread_local std::random_device rd;
+        static thread_local std::mt19937_64 gen(rd());
+        static thread_local std::uniform_int_distribution<uint64_t> dis;
+
+        uint64_t high = dis(gen);
+        uint64_t low = dis(gen);
+
+        // Set version to 4
+        high = (high & 0xFFFFFFFFFFFF0FFFULL) | 0x0000000000004000ULL;
+        // Set variant to RFC 4122
+        low = (low & 0x3FFFFFFFFFFFFFFFULL) | 0x8000000000000000ULL;
+
+        return UniqueId(high, low);
+    }
 };
 
 // Formatter specialization for UUID
 template<>
-struct std::formatter<UniqueId<UUIDStorage>> : std::formatter<std::string> {
+struct std::formatter<UniqueId<uint128_t>> : std::formatter<std::string> {
     template<typename FormatContext>
-    auto format(const UniqueId<UUIDStorage>& id, FormatContext& ctx) {
+    auto format(const UniqueId<uint128_t>& id, FormatContext& ctx) {
         return std::formatter<std::string>::format(
             id.format(detail::parse_format_spec(ctx.format_spec())), ctx);
     }
 };
 
 // Common type alias
-using UUID = UniqueId<UUIDStorage>;
+using Uuid = UniqueId<uint128_t>;

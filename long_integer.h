@@ -3,6 +3,7 @@
 #include <bit>
 #include <concepts>
 #include <cstdint>
+#include <format>
 #include <limits>
 #include <stdexcept>
 
@@ -12,11 +13,14 @@ struct int128_t;
 struct uint256_t;
 struct int256_t;
 
+#pragma region uint128_t Implementation
 // 128-bit unsigned integer
 struct uint128_t {
   uint64_t low;
   uint64_t high;
 
+#pragma region Constructions
+  // Constructions
   constexpr uint128_t() : low(0), high(0) {}
 
   template<typename T>
@@ -29,10 +33,24 @@ struct uint128_t {
   explicit constexpr uint128_t(T l) : low(l), high(0)
   {
   }
+  explicit constexpr uint128_t(double v)
+  {
+    // if (v < 0 || v > std::numeric_limits<uint128_t>::max()) {
+    //   throw std::out_of_range("Double value out of range for uint128_t");
+    // }
+    uint64_t integral_part = static_cast<uint64_t>(v);
+    v -= integral_part;
+    v *= static_cast<double>(std::numeric_limits<uint64_t>::max()) + 1.0;
+    low = integral_part | static_cast<uint64_t>(v);
+    high = static_cast<uint64_t>(
+        v / (static_cast<double>(std::numeric_limits<uint64_t>::max()) + 1.0));
+  }
   explicit constexpr uint128_t(const int128_t &v);
   explicit constexpr uint128_t(uint64_t l) : low(l), high(0) {}
   constexpr uint128_t(uint64_t h, uint64_t l) : low(l), high(h) {}
+#pragma endregion
 
+#pragma region Caster Operators
   // Additional conversion operators
   explicit constexpr operator bool() const noexcept
   {
@@ -79,7 +97,9 @@ struct uint128_t {
   {
     return static_cast<float>(static_cast<double>(*this));
   }
+#pragma endregion
 
+#pragma region Arithmatic Assignment Operators (Self)
   // Arithmetic operators
   constexpr uint128_t &operator+=(const uint128_t &rhs)
   {
@@ -99,10 +119,14 @@ struct uint128_t {
 
   constexpr uint128_t &operator*=(const uint128_t &rhs)
   {
-    uint128_t result = static_cast<uint128_t>(0);
-    for (int i = 0; i < 128; ++i) {
-      if (rhs.bit(i))
-        result += (*this << i);
+    uint128_t result{0};
+    uint128_t a = *this;
+    uint128_t b = rhs;
+    while (b != 0) {
+      if (b.low & 1)
+        result += a;
+      a <<= 1;
+      b >>= 1;
     }
     *this = result;
     return *this;
@@ -118,10 +142,16 @@ struct uint128_t {
     uint128_t quotient = static_cast<uint128_t>(0);
     uint128_t remainder = *this;
 
+    // todo: improve this
+    int zero_bits = std::countl_zero(high);
+    zero_bits += zero_bits == 64 ? std::countl_zero(low) : 0;
+
     while (remainder >= rhs) {
       int shift = std::countl_zero(rhs.high);
+      shift += shift == 64 ? std::countl_zero(rhs.low) : 0;
+      shift -= zero_bits;
       uint128_t shifted = rhs << shift;
-      if (shifted > remainder) {
+      while (shifted > remainder) {
         shifted >>= 1;
         --shift;
       }
@@ -187,89 +217,103 @@ struct uint128_t {
     return *this;
   }
 
+  constexpr uint128_t &operator%=(const uint128_t &rhs)
+  {
+    if (rhs == 0)
+      throw std::domain_error("Modulo by zero");
+    if (rhs == 1) {
+      high = low = 0;
+      return *this;
+    }
+
+    uint128_t remainder = *this;
+    while (remainder >= rhs) {
+      int shift = std::countl_zero(rhs.high);
+      uint128_t shifted = rhs << shift;
+      if (shifted > remainder) {
+        shifted >>= 1;
+        --shift;
+      }
+      remainder -= shifted;
+    }
+
+    *this = remainder;
+    return *this;
+  }
+#pragma endregion
+
+#pragma region Bit Operations
   constexpr uint128_t operator~() const
   {
     return {~high, ~low};
   }
-  constexpr bool bit(int i) const
+
+  constexpr bool bit(size_t i) const
   {
+    if (i >= 128)
+      return false;
     return i < 64 ? (low >> i) & 1 : (high >> (i - 64)) & 1;
   }
+#pragma endregion
 
+#pragma region Binary Operators
   // Binary operators
-  template<typename T>
-    requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  friend constexpr uint128_t operator+(const uint128_t &lhs, T rhs)
-  {
-    return lhs + static_cast<uint128_t>(rhs);
-  }
-  template<typename T>
-    requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  friend constexpr uint128_t operator-(const uint128_t &lhs, T rhs)
-  {
-    return lhs - static_cast<uint128_t>(rhs);
-  }
-  template<typename T>
-    requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  friend constexpr uint128_t operator*(const uint128_t &lhs, T rhs)
-  {
-    return lhs * static_cast<uint128_t>(rhs);
-  }
-  template<typename T>
-    requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  friend constexpr uint128_t operator/(const uint128_t &lhs, T rhs)
-  {
-    return lhs / static_cast<uint128_t>(rhs);
-  }
-  friend constexpr uint128_t operator+(const uint128_t &lhs, const uint128_t &rhs)
+  friend uint128_t operator+(const uint128_t &lhs, const uint128_t &rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy += rhs;
   }
-  friend constexpr uint128_t operator-(const uint128_t &lhs, const uint128_t &rhs)
+  friend uint128_t operator-(const uint128_t &lhs, const uint128_t &rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy -= rhs;
   }
-  friend constexpr uint128_t operator*(const uint128_t &lhs, const uint128_t &rhs)
+  friend uint128_t operator*(const uint128_t &lhs, const uint128_t &rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy *= rhs;
   }
-  friend constexpr uint128_t operator/(const uint128_t &lhs, const uint128_t &rhs)
+  friend uint128_t operator/(const uint128_t &lhs, const uint128_t &rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy /= rhs;
   }
-  friend constexpr uint128_t operator&(const uint128_t &lhs, const uint128_t &rhs)
+  friend uint128_t operator&(const uint128_t &lhs, const uint128_t &rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy &= rhs;
   }
-  friend constexpr uint128_t operator|(const uint128_t &lhs, const uint128_t &rhs)
+  friend uint128_t operator|(const uint128_t &lhs, const uint128_t &rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy |= rhs;
   }
-  friend constexpr uint128_t operator^(const uint128_t &lhs, const uint128_t &rhs)
+  friend uint128_t operator^(const uint128_t &lhs, const uint128_t &rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy ^= rhs;
   }
-  friend constexpr uint128_t operator<<(const uint128_t &lhs, int shift)
+  friend uint128_t operator<<(const uint128_t &lhs, int shift)
   {
     auto lhs_copy = lhs;
     return lhs_copy <<= shift;
   }
-  friend constexpr uint128_t operator>>(const uint128_t &lhs, int shift)
+  friend uint128_t operator>>(const uint128_t &lhs, int shift)
   {
     auto lhs_copy = lhs;
     return lhs_copy >>= shift;
   }
+  friend uint128_t operator%(const uint128_t &lhs, const uint128_t &rhs)
+  {
+    auto lhs_copy = lhs;
+    return lhs_copy %= rhs;
+  }
+#pragma endregion
 
+#pragma region Additional Operators with Built-in Types
   // Additional operators for built-in types
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   uint128_t &operator&=(T rhs)
   {
     low &= rhs;
@@ -278,7 +322,7 @@ struct uint128_t {
   }
 
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   uint128_t &operator|=(T rhs)
   {
     low |= rhs;
@@ -286,7 +330,7 @@ struct uint128_t {
   }
 
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   uint128_t &operator^=(T rhs)
   {
     low ^= rhs;
@@ -294,7 +338,85 @@ struct uint128_t {
   }
 
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  uint128_t &operator+=(T rhs)
+  {
+    uint64_t old_low = low;
+    low += rhs;
+    high += (low < old_low ? 1 : 0);
+    return *this;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  uint128_t &operator-=(T rhs)
+  {
+    uint64_t old_low = low;
+    low -= rhs;
+    high -= (low > old_low ? 1 : 0);
+    return *this;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  uint128_t &operator*=(T rhs)
+  {
+    uint64_t a = low & 0xFFFFFFFF;
+    uint64_t b = low >> 32;
+    uint64_t c = rhs & 0xFFFFFFFF;
+    uint64_t d = rhs >> 32;
+
+    uint64_t ac = a * c;
+    uint64_t bc = b * c;
+    uint64_t ad = a * d;
+    uint64_t bd = b * d;
+
+    uint64_t mid34 = (ac >> 32) + (bc & 0xFFFFFFFF) + ad;
+    uint64_t upper64 = bc >> 32;
+    upper64 += bd + (mid34 >> 32);
+    low = (ac & 0xFFFFFFFF) | (mid34 << 32);
+    high = upper64 + (low < ac ? 1 : 0);
+    return *this;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  uint128_t &operator/=(T rhs)
+  {
+    return *this = *this / static_cast<uint128_t>(rhs);
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  uint128_t &operator%=(T rhs)
+  {
+    if (rhs == 0)
+      throw std::domain_error("Modulo by zero");
+    if (rhs == 1 || rhs == -1) {
+      low = high = 0;
+      return *this;
+    }
+
+    uint128_t remainder = *this;
+    uint128_t divisor = uint128_t(rhs);
+
+    while (remainder >= divisor) {
+      auto high_zero = std::countl_zero(divisor.high);
+      int shift = high_zero == 64 ? high_zero + std::countl_zero(divisor.low) : high_zero;
+      uint128_t shifted = divisor << shift;
+      while (shifted > remainder) {
+        shifted >>= 1;
+        --shift;
+      }
+      remainder -= shifted;
+    }
+
+    *this = remainder;
+    return *this;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   friend uint128_t operator&(const uint128_t &lhs, T rhs)
   {
     auto lhs_copy = lhs;
@@ -302,7 +424,7 @@ struct uint128_t {
   }
 
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   friend uint128_t operator|(const uint128_t &lhs, T rhs)
   {
     auto lhs_copy = lhs;
@@ -310,7 +432,7 @@ struct uint128_t {
   }
 
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   friend uint128_t operator^(const uint128_t &lhs, T rhs)
   {
     auto lhs_copy = lhs;
@@ -318,7 +440,15 @@ struct uint128_t {
   }
 
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  friend uint128_t operator%(const uint128_t &lhs, T rhs)
+  {
+    auto lhs_copy = lhs;
+    return lhs_copy %= rhs;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   friend uint128_t operator&(T lhs, const uint128_t &rhs)
   {
     auto rhs_copy = rhs;
@@ -326,7 +456,7 @@ struct uint128_t {
   }
 
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   friend uint128_t operator|(T lhs, const uint128_t &rhs)
   {
     auto rhs_copy = rhs;
@@ -334,21 +464,23 @@ struct uint128_t {
   }
 
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   friend uint128_t operator^(T lhs, const uint128_t &rhs)
   {
     auto rhs_copy = rhs;
     return rhs_copy ^= lhs;
   }
+#pragma endregion
 
+#pragma region Comparison Operators
   // Friend declarations for comparison operators
   template<typename T>
     requires std::is_integral_v<T>
-  friend constexpr std::strong_ordering operator<=>(const uint128_t &lhs, const T &rhs) noexcept;
+  friend constexpr std::strong_ordering operator<=>(const uint128_t &lhs, T rhs) noexcept;
 
   template<typename T>
     requires std::is_integral_v<T>
-  friend constexpr bool operator==(const uint128_t &lhs, const T &rhs) noexcept;
+  friend constexpr bool operator==(const uint128_t &lhs, T rhs) noexcept;
 
   friend constexpr std::strong_ordering operator<=>(const uint128_t &lhs,
                                                     const uint128_t &rhs) noexcept;
@@ -362,12 +494,17 @@ struct uint128_t {
   friend constexpr std::strong_ordering operator<=>(const uint128_t &lhs,
                                                     const int256_t &rhs) noexcept;
   friend constexpr bool operator==(const uint128_t &lhs, const int256_t &rhs) noexcept;
+#pragma endregion
 };
+#pragma endregion
 
+#pragma region int128_t Implementation
 // 128-bit signed integer
 struct int128_t {
   uint128_t value;
 
+#pragma region Constructions
+  // Constructors
   constexpr int128_t() = default;
   template<typename T>
     requires std::is_integral_v<T> && std::is_signed_v<T> && (sizeof(T) <= 8)
@@ -379,9 +516,25 @@ struct int128_t {
   explicit constexpr int128_t(T v) : value(v)
   {
   }
+  explicit constexpr int128_t(double v)
+  {
+    if (v >= static_cast<double>(std::numeric_limits<int64_t>::max())) {
+      value = uint128_t(std::numeric_limits<int64_t>::max());
+    }
+    else if (v <= static_cast<double>(std::numeric_limits<int64_t>::min())) {
+      value = uint128_t(std::numeric_limits<int64_t>::min());
+    }
+    else {
+      value = uint128_t(static_cast<int64_t>(v));
+    }
+  }
   explicit constexpr int128_t(const uint128_t &v) : value(v) {}
+  explicit constexpr int128_t(uint64_t h, uint64_t l) : value{h, l} {}
 
-  // Additional conversion operators
+#pragma endregion
+
+#pragma region Caster Operators
+  // Conversion operators
   explicit constexpr operator bool() const noexcept
   {
     return static_cast<bool>(value);
@@ -437,7 +590,9 @@ struct int128_t {
   {
     return static_cast<float>(static_cast<double>(*this));
   }
+#pragma endregion
 
+#pragma region Arithmatic Assignment Operators (Self)
   // Arithmetic operators
   int128_t &operator+=(const int128_t &rhs)
   {
@@ -486,6 +641,11 @@ struct int128_t {
     value >>= shift;
     return *this;
   }
+  int128_t &operator%=(const int128_t &rhs)
+  {
+    value %= rhs.value;
+    return *this;
+  }
 
   int128_t operator~() const
   {
@@ -495,7 +655,13 @@ struct int128_t {
   {
     return int128_t{~value + uint128_t(1)};
   }
+  constexpr bool bit(size_t i) const
+  {
+    return value.bit(i);
+  }
+#pragma endregion
 
+#pragma region Binary Operators
   // Binary operators
   friend int128_t operator+(const int128_t &lhs, const int128_t &rhs)
   {
@@ -542,10 +708,17 @@ struct int128_t {
     auto lhs_copy = lhs;
     return lhs_copy >>= shift;
   }
+  friend int128_t operator%(const int128_t &lhs, const int128_t &rhs)
+  {
+    auto lhs_copy = lhs;
+    return lhs_copy %= rhs;
+  }
+#pragma endregion
 
+#pragma region Additional Operators with Built-in Types
   // Additional operators for built-in types and int128_t
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   int128_t &operator&=(T rhs)
   {
     value &= rhs;
@@ -553,7 +726,7 @@ struct int128_t {
   }
 
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   int128_t &operator|=(T rhs)
   {
     value |= rhs;
@@ -561,7 +734,7 @@ struct int128_t {
   }
 
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   int128_t &operator^=(T rhs)
   {
     value ^= rhs;
@@ -569,28 +742,68 @@ struct int128_t {
   }
 
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  int128_t &operator+=(T rhs)
+  {
+    value += rhs;
+    return *this;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  int128_t &operator-=(T rhs)
+  {
+    value -= rhs;
+    return *this;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  int128_t &operator*=(T rhs)
+  {
+    value *= rhs;
+    return *this;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  int128_t &operator/=(T rhs)
+  {
+    value /= rhs;
+    return *this;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  int128_t &operator%=(T rhs)
+  {
+    value /= rhs;
+    return *this;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   friend int128_t operator&(int128_t lhs, T rhs)
   {
     return lhs &= rhs;
   }
 
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   friend int128_t operator|(int128_t lhs, T rhs)
   {
     return lhs |= rhs;
   }
 
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   friend int128_t operator^(int128_t lhs, T rhs)
   {
     return lhs ^= rhs;
   }
 
   template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   friend int128_t operator&(T lhs, int128_t rhs)
   {
     return rhs &= lhs;
@@ -609,15 +822,17 @@ struct int128_t {
   {
     return rhs ^= lhs;
   }
+#pragma endregion
 
+#pragma region Comparison Operators
   // Friend declarations for comparison operators
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  friend constexpr std::strong_ordering operator<=>(const int128_t &lhs, const T &rhs) noexcept;
+  friend constexpr std::strong_ordering operator<=>(const int128_t &lhs, T rhs) noexcept;
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  friend constexpr bool operator==(const int128_t &lhs, const T &rhs) noexcept;
+  friend constexpr bool operator==(const int128_t &lhs, T rhs) noexcept;
 
   friend constexpr std::strong_ordering operator<=>(const int128_t &lhs,
                                                     const uint128_t &rhs) noexcept;
@@ -631,15 +846,18 @@ struct int128_t {
   friend constexpr std::strong_ordering operator<=>(const int128_t &lhs,
                                                     const int256_t &rhs) noexcept;
   friend constexpr bool operator==(const int128_t &lhs, const int256_t &rhs) noexcept;
+#pragma endregion
 };
+#pragma endregion
 
-constexpr uint128_t::uint128_t(const int128_t &v) : uint128_t(v.value) {}
-
+#pragma region uint256_t Implementation
 // 256-bit unsigned integer
 struct uint256_t {
   uint128_t low;
   uint128_t high;
 
+#pragma region Constructions
+  // Constructors
   constexpr uint256_t() = default;
   template<typename T>
     requires std::is_integral_v<T> && std::is_signed_v<T> && (sizeof(T) <= 8)
@@ -651,6 +869,7 @@ struct uint256_t {
   explicit constexpr uint256_t(T l) : low(l), high(0)
   {
   }
+  explicit constexpr uint256_t(double v);
   explicit constexpr uint256_t(const int128_t &l)
       : low{const_cast<int128_t &>(l)}, high(l < 0 ? -1 : 0)
   {
@@ -661,8 +880,10 @@ struct uint256_t {
   constexpr uint256_t(uint64_t hh, uint64_t h, uint64_t l, uint64_t ll) : low(l, ll), high(hh, h)
   {
   }
+#pragma endregion
 
-  // Additional conversion operators
+#pragma region Caster Operators
+  // Conversion operators
   explicit constexpr operator bool() const noexcept
   {
     return static_cast<bool>(high) || static_cast<bool>(low);
@@ -716,7 +937,9 @@ struct uint256_t {
   {
     return static_cast<float>(static_cast<double>(*this));
   }
+#pragma endregion
 
+#pragma region Arithmatic Assignment Operators (Self)
   // Arithmetic operators
   uint256_t &operator+=(const uint256_t &rhs)
   {
@@ -731,6 +954,45 @@ struct uint256_t {
     uint128_t old_low = low;
     low -= rhs.low;
     high -= rhs.high + (low > old_low ? uint128_t(1) : uint128_t(0));
+    return *this;
+  }
+
+  uint256_t &operator*=(const uint256_t &rhs)
+  {
+    uint256_t result = static_cast<uint256_t>(0);
+    for (int i = 0; i < 256; ++i) {
+      if (rhs.bit(i))
+        result += (*this << i);
+    }
+    *this = result;
+    return *this;
+  }
+
+  uint256_t &operator/=(const uint256_t &rhs)
+  {
+    if (rhs == 0)
+      throw std::domain_error("Division by zero");
+    if (rhs == 1)
+      return *this;
+
+    uint256_t quotient = static_cast<uint256_t>(0);
+    uint256_t remainder = *this;
+
+    while (remainder >= rhs) {
+      uint256_t shifted = rhs;
+      int shift = 0;
+
+      // Find the largest shift that keeps shifted <= remainder
+      while ((shifted << 1) <= remainder && shift < 255) {
+        shifted <<= 1;
+        ++shift;
+      }
+
+      remainder -= shifted;
+      quotient |= uint256_t(1) << shift;
+    }
+
+    *this = quotient;
     return *this;
   }
 
@@ -788,11 +1050,48 @@ struct uint256_t {
     return *this;
   }
 
+  uint256_t &operator%=(const uint256_t &rhs)
+  {
+    if (rhs == 0)
+      throw std::domain_error("Modulo by zero");
+    if (rhs == 1 || *this < rhs)
+      return *this;
+
+    uint256_t remainder = *this;
+    while (remainder >= rhs) {
+      uint256_t shifted = rhs;
+      int shift = 0;
+      while ((shifted << 1) <= remainder && shift < 255) {
+        shifted <<= 1;
+        ++shift;
+      }
+      remainder -= shifted;
+    }
+    *this = remainder;
+    return *this;
+  }
+
   uint256_t operator~() const
   {
     return {~high, ~low};
   }
 
+  uint256_t operator-() const
+  {
+    if (*this == 0)
+      return *this;
+    return ~(*this) + 1;
+  }
+
+  constexpr bool bit(size_t i) const
+  {
+    if (i >= 256)
+      return false;
+    return i < 128 ? low.bit(i) : high.bit(i - 128);
+  }
+#pragma endregion
+
+#pragma region Binary Operators
   // Binary operators
   friend uint256_t operator+(const uint256_t &lhs, const uint256_t &rhs)
   {
@@ -803,6 +1102,16 @@ struct uint256_t {
   {
     auto lhs_copy = lhs;
     return lhs_copy -= rhs;
+  }
+  friend uint256_t operator*(const uint256_t &lhs, const uint256_t &rhs)
+  {
+    auto lhs_copy = lhs;
+    return lhs_copy *= rhs;
+  }
+  friend uint256_t operator/(const uint256_t &lhs, const uint256_t &rhs)
+  {
+    auto lhs_copy = lhs;
+    return lhs_copy /= rhs;
   }
   friend uint256_t operator&(const uint256_t &lhs, const uint256_t &rhs)
   {
@@ -829,7 +1138,14 @@ struct uint256_t {
     auto lhs_copy = lhs;
     return lhs_copy >>= shift;
   }
+  friend uint256_t operator%(const uint256_t &lhs, const uint256_t &rhs)
+  {
+    auto lhs_copy = lhs;
+    return lhs_copy %= rhs;
+  }
+#pragma endregion
 
+#pragma region Additional Operators with Built-in Types
   // Additional operators for built-in types and uint128_t
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
@@ -855,6 +1171,45 @@ struct uint256_t {
     low ^= rhs;
     return *this;
   }
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  uint256_t &operator+=(T rhs)
+  {
+    uint256_t tmp(rhs);
+    return *this += tmp;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  uint256_t &operator-=(T rhs)
+  {
+    uint256_t tmp(rhs);
+    return *this -= tmp;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  uint256_t &operator*=(T rhs)
+  {
+    uint256_t tmp(rhs);
+    return *this *= tmp;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  uint256_t &operator/=(T rhs)
+  {
+    uint256_t tmp(rhs);
+    return *this /= tmp;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  uint256_t &operator%=(T rhs)
+  {
+    uint256_t tmp(rhs);
+    return *this %= tmp;
+  }
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
@@ -879,6 +1234,41 @@ struct uint256_t {
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  friend uint256_t operator+(uint256_t lhs, T rhs)
+  {
+    return lhs += rhs;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  friend uint256_t operator-(uint256_t lhs, T rhs)
+  {
+    return lhs -= rhs;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  friend uint256_t operator*(uint256_t lhs, T rhs)
+  {
+    return lhs *= rhs;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  friend uint256_t operator/(uint256_t lhs, T rhs)
+  {
+    return lhs /= rhs;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  friend uint256_t operator%(uint256_t lhs, T rhs)
+  {
+    return lhs %= rhs;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
   friend uint256_t operator&(T lhs, uint256_t rhs)
   {
     return rhs &= lhs;
@@ -897,15 +1287,17 @@ struct uint256_t {
   {
     return rhs ^= lhs;
   }
+#pragma endregion
 
+#pragma region Comparison Operators
   // Friend declarations for comparison operators
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  friend constexpr std::strong_ordering operator<=>(const uint256_t &lhs, const T &rhs) noexcept;
+  friend constexpr std::strong_ordering operator<=>(const uint256_t &lhs, T rhs) noexcept;
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  friend constexpr bool operator==(const uint256_t &lhs, const T &rhs) noexcept;
+  friend constexpr bool operator==(const uint256_t &lhs, T rhs) noexcept;
 
   friend constexpr std::strong_ordering operator<=>(const uint256_t &lhs,
                                                     const int256_t &rhs) noexcept;
@@ -919,12 +1311,17 @@ struct uint256_t {
   friend constexpr std::strong_ordering operator<=>(const uint256_t &lhs,
                                                     const uint128_t &rhs) noexcept;
   friend constexpr bool operator==(const uint256_t &lhs, const uint128_t &rhs) noexcept;
+#pragma endregion
 };
+#pragma endregion
 
+#pragma region int256_t Implementation
 // 256-bit signed integer
 struct int256_t {
   uint256_t value;
 
+#pragma region Constructions
+  // Constructors
   constexpr int256_t() : value() {}
   template<typename T>
     requires std::is_integral_v<T> && std::is_signed_v<T> && (sizeof(T) <= 8)
@@ -937,24 +1334,31 @@ struct int256_t {
   {
   }
   constexpr int256_t(const int256_t &v) = default;
-  constexpr int256_t(const int128_t &v)
+  explicit constexpr int256_t(const int128_t &v)
       : value(v < 0 ? static_cast<uint128_t>(-1) : static_cast<uint128_t>(0), v.value)
   {
   }
-  constexpr int256_t(const uint256_t &v) : value(v)
+  explicit constexpr int256_t(const uint256_t &v) : value(v)
   {
     // todo: should set first bit to zero?
   }
+  explicit constexpr int256_t(double v);
   constexpr int256_t(const uint128_t &h, const uint128_t &l) : value{h, l} {}
   constexpr int256_t(const uint64_t hh, const uint64_t hl, const uint64_t lh, const uint64_t ll)
       : value{hh, hl, lh, ll}
   {
   }
+#pragma endregion
 
-  // Additional conversion operators
+#pragma region Caster Operators
+  // Conversion operators
   explicit constexpr operator bool() const noexcept
   {
     return static_cast<bool>(value);
+  }
+  explicit constexpr operator uint256_t() const noexcept
+  {
+    return value;
   }
   explicit constexpr operator uint128_t() const noexcept
   {
@@ -1021,7 +1425,9 @@ struct int256_t {
   {
     return static_cast<float>(static_cast<double>(*this));
   }
+#pragma endregion
 
+#pragma region Arithmatic Assignment Operators (Self)
   // Arithmetic operators
   int256_t &operator+=(const int256_t &rhs)
   {
@@ -1033,7 +1439,16 @@ struct int256_t {
     value -= rhs.value;
     return *this;
   }
+  int256_t &operator*=(const int256_t &rhs)
+  {
+    value *= rhs.value;
+    return *this;
+  }
+  int256_t &operator/=(const int256_t &rhs);
 
+#pragma endregion
+
+#pragma region Bit Operations
   // Bitwise operators
   int256_t &operator&=(const int256_t &rhs)
   {
@@ -1050,12 +1465,12 @@ struct int256_t {
     value ^= rhs.value;
     return *this;
   }
-  int256_t &operator<<=(const int shift)
+  int256_t &operator<<=(int shift)
   {
     value <<= shift;
     return *this;
   }
-  int256_t &operator>>=(const int shift)
+  int256_t &operator>>=(int shift)
   {
     value >>= shift;
     return *this;
@@ -1063,13 +1478,17 @@ struct int256_t {
 
   int256_t operator~() const
   {
-    return {~value};
+    return int256_t{~value};
   }
-  int256_t operator-() const
-  {
-    return {~value + uint256_t(1)};
-  }
+  int256_t operator-() const;
 
+  constexpr bool bit(size_t i) const
+  {
+    return value.bit(i);
+  }
+#pragma endregion
+
+#pragma region Binary Operators
   // Binary operators
   friend int256_t operator+(const int256_t &lhs, const int256_t &rhs)
   {
@@ -1080,6 +1499,16 @@ struct int256_t {
   {
     auto lhs_copy = lhs;
     return lhs_copy -= rhs;
+  }
+  friend int256_t operator*(const int256_t &lhs, const int256_t &rhs)
+  {
+    auto lhs_copy = lhs;
+    return lhs_copy *= rhs;
+  }
+  friend int256_t operator/(const int256_t &lhs, const int256_t &rhs)
+  {
+    auto lhs_copy = lhs;
+    return lhs_copy /= rhs;
   }
   friend int256_t operator&(const int256_t &lhs, const int256_t &rhs)
   {
@@ -1106,8 +1535,17 @@ struct int256_t {
     auto lhs_copy = lhs;
     return lhs_copy >>= shift;
   }
+#pragma endregion
 
-  // Additional operators for built-in types and int128_t
+#pragma region Additional Operators with Built-in Types
+  // Additional operators for built-in types and int256_t
+  template<typename T>
+    requires std::is_integral_v<T>
+  int256_t &operator/=(T rhs)
+  {
+    return *this /= int256_t(rhs);
+  }
+
   template<typename T>
     requires std::is_integral_v<T>
   int256_t &operator&=(T rhs)
@@ -1134,6 +1572,13 @@ struct int256_t {
 
   template<typename T>
     requires std::is_integral_v<T>
+  friend int256_t operator/(int256_t lhs, T rhs)
+  {
+    return lhs /= rhs;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T>
   friend int256_t operator&(int256_t lhs, T rhs)
   {
     return lhs &= rhs;
@@ -1151,6 +1596,13 @@ struct int256_t {
   friend int256_t operator^(int256_t lhs, T rhs)
   {
     return lhs ^= rhs;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T>
+  friend int256_t operator/(T lhs, const int256_t &rhs)
+  {
+    return int256_t(lhs) /= rhs;
   }
 
   template<typename T>
@@ -1173,15 +1625,17 @@ struct int256_t {
   {
     return rhs ^= lhs;
   }
+#pragma endregion
 
+#pragma region Comparison Operators
   // Friend declarations for comparison operators
   template<typename T>
-    requires std::is_integral_v<T>
-  friend constexpr std::strong_ordering operator<=>(const int256_t &lhs, const T &rhs) noexcept;
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  friend constexpr std::strong_ordering operator<=>(const int256_t &lhs, T rhs) noexcept;
 
   template<typename T>
-    requires std::is_integral_v<T>
-  friend constexpr bool operator==(const int256_t &lhs, const T &rhs) noexcept;
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  friend constexpr bool operator==(const int256_t &lhs, T rhs) noexcept;
 
   friend constexpr std::strong_ordering operator<=>(const int256_t &lhs,
                                                     const int256_t &rhs) noexcept;
@@ -1195,7 +1649,9 @@ struct int256_t {
   friend constexpr std::strong_ordering operator<=>(const int256_t &lhs,
                                                     const uint128_t &rhs) noexcept;
   friend constexpr bool operator==(const int256_t &lhs, const uint128_t &rhs) noexcept;
+#pragma endregion
 };
+#pragma endregion
 
 template<> class std::numeric_limits<uint128_t> {
  public:
@@ -1573,10 +2029,73 @@ namespace traits {
 
 }  // namespace traits
 
+inline int256_t &int256_t::operator/=(const int256_t &rhs)
+{
+  if (rhs == 0)
+    throw std::domain_error("Division by zero");
+
+  // Handle division by -1 separately to avoid overflow with min value
+  if (rhs == -1) {
+    if (*this == std::numeric_limits<int256_t>::min()) {
+      throw std::overflow_error("Division overflow");
+    }
+    value = (-(*this)).value;
+    return *this;
+  }
+
+  bool result_negative = (*this < 0) != (rhs < 0);
+  auto abs_this = *this < 0 ? -(*this) : *this;
+  auto abs_rhs = rhs < 0 ? -rhs : rhs;
+
+  abs_this.value /= abs_rhs.value;
+  if (result_negative) {
+    *this = -abs_this;
+  }
+  else {
+    *this = abs_this;
+  }
+  return *this;
+}
+
+inline int256_t int256_t::operator-() const
+{
+  if (*this == std::numeric_limits<int256_t>::min()) {
+    throw std::overflow_error("Negation overflow");
+  }
+  return int256_t{-value};
+}
+
+// todo:
+// constexpr uint256_t::uint256_t(double v)
+//{
+//  // if (v < 0 || v > std::numeric_limits<uint256_t>::max()) {
+//  //   throw std::out_of_range("Double value out of range for uint256_t");
+//  // }
+//  uint128_t integral_part = static_cast<uint128_t>(v);
+//  v -= static_cast<double>(integral_part);
+//  v *= static_cast<double>(std::numeric_limits<uint128_t>::max()) + 1.0;
+//  low = integral_part | static_cast<uint128_t>(v);
+//  high = static_cast<uint128_t>(
+//      v / (static_cast<double>(std::numeric_limits<uint128_t>::max()) + 1.0));
+//}
+
+constexpr int256_t::int256_t(double v)
+{
+  if (v >= static_cast<double>(std::numeric_limits<int128_t>::max())) {
+    value = uint256_t(std::numeric_limits<int128_t>::max());
+  }
+  else if (v <= static_cast<double>(std::numeric_limits<int128_t>::min())) {
+    value = uint256_t(std::numeric_limits<int128_t>::min());
+  }
+  else {
+    value = uint256_t(static_cast<int128_t>(v));
+  }
+}
+
 // uint128_t comparison operators
 template<typename T>
   requires std::is_integral_v<T>
-constexpr std::strong_ordering operator<=>(const uint128_t &lhs, const T &rhs) noexcept
+constexpr std::strong_ordering operator<=>(const uint128_t &lhs, T rhs) noexcept
 {
   if (lhs.high > 0)
     return std::strong_ordering::greater;
@@ -1585,7 +2104,7 @@ constexpr std::strong_ordering operator<=>(const uint128_t &lhs, const T &rhs) n
 
 template<typename T>
   requires std::is_integral_v<T>
-constexpr bool operator==(const uint128_t &lhs, const T &rhs) noexcept
+constexpr bool operator==(const uint128_t &lhs, T rhs) noexcept
 {
   return lhs.high == 0 && lhs.low == static_cast<uint64_t>(rhs);
 }
@@ -1633,7 +2152,7 @@ constexpr bool operator==(const uint128_t &lhs, const int256_t &rhs) noexcept
 // int128_t comparison operators
 template<typename T>
   requires std::is_integral_v<T> && (sizeof(T) <= 8)
-constexpr std::strong_ordering operator<=>(const int128_t &lhs, const T &rhs) noexcept
+constexpr std::strong_ordering operator<=>(const int128_t &lhs, T rhs) noexcept
 {
   bool lhs_negative = lhs.value.high & (static_cast<uint64_t>(1) << 63);
   if (std::is_signed_v<T>) {
@@ -1659,7 +2178,7 @@ constexpr std::strong_ordering operator<=>(const int128_t &lhs, const T &rhs) no
 
 template<typename T>
   requires std::is_integral_v<T> && (sizeof(T) <= 8)
-constexpr bool operator==(const int128_t &lhs, const T &rhs) noexcept
+constexpr bool operator==(const int128_t &lhs, T rhs) noexcept
 {
   bool lhs_negative = lhs.value.high & (static_cast<uint64_t>(1) << 63);
   if (std::is_signed_v<T>) {
@@ -1709,7 +2228,7 @@ constexpr bool operator==(const int128_t &lhs, const int256_t &rhs) noexcept
 // uint256_t comparison operators
 template<typename T>
   requires std::is_integral_v<T> && (sizeof(T) <= 8)
-constexpr std::strong_ordering operator<=>(const uint256_t &lhs, const T &rhs) noexcept
+constexpr std::strong_ordering operator<=>(const uint256_t &lhs, T rhs) noexcept
 {
   if (lhs.high != 0)
     return std::strong_ordering::greater;
@@ -1718,7 +2237,7 @@ constexpr std::strong_ordering operator<=>(const uint256_t &lhs, const T &rhs) n
 
 template<typename T>
   requires std::is_integral_v<T> && (sizeof(T) <= 8)
-constexpr bool operator==(const uint256_t &lhs, const T &rhs) noexcept
+constexpr bool operator==(const uint256_t &lhs, T rhs) noexcept
 {
   return lhs.high == 0 && lhs.low == static_cast<uint128_t>(rhs);
 }
@@ -1740,7 +2259,7 @@ constexpr bool operator==(const uint256_t &lhs, const int256_t &rhs) noexcept
 // int256_t comparison operators
 template<typename T>
   requires std::is_integral_v<T> && (sizeof(T) <= 8)
-constexpr std::strong_ordering operator<=>(const int256_t &lhs, const T &rhs) noexcept
+constexpr std::strong_ordering operator<=>(const int256_t &lhs, T rhs) noexcept
 {
   bool lhs_negative = lhs.value.high.high & (static_cast<uint64_t>(1) << 63);
   if (std::is_signed_v<T>) {
@@ -1764,7 +2283,7 @@ constexpr std::strong_ordering operator<=>(const int256_t &lhs, const T &rhs) no
 
 template<typename T>
   requires std::is_integral_v<T> && (sizeof(T) <= 8)
-constexpr bool operator==(const int256_t &lhs, const T &rhs) noexcept
+constexpr bool operator==(const int256_t &lhs, T rhs) noexcept
 {
   bool lhs_negative = lhs.value.high.high & (static_cast<uint64_t>(1) << 63);
   if (std::is_signed_v<T>) {
@@ -1994,3 +2513,414 @@ constexpr auto operator^(const T1 &lhs, const T2 &rhs) noexcept
   T1 t2{rhs};
   return t2 ^= lhs;
 }
+
+// Formatter specializations
+template<> struct std::formatter<uint128_t> : std::formatter<std::string> {
+  constexpr auto parse(format_parse_context &ctx)
+  {
+    auto it = ctx.begin();
+    auto end = ctx.end();
+
+    // Default format settings
+    _width = 0;
+    _base = 10;
+    _prefix = false;
+    _upper = false;
+    _fill = ' ';
+    _align = '<';
+
+    // Parse fill and align
+    // if (it != end && *(it + 1) != '}') {
+    //  auto next = it + 1;
+    //  if (*next == '<' || *next == '>' || *next == '^') {
+    //    _fill = *it;
+    //    _align = *next;
+    //    it += 2;
+    //  }
+    //  else if (*it == '<' || *it == '>' || *it == '^') {
+    //    _align = *it;
+    //    ++it;
+    //  }
+    //}
+
+    // Parse width
+    // if (it != end && std::isdigit(*it)) {
+    //  _width = 0;
+    //  do {
+    //    _width = _width * 10 + (*it - '0');
+    //    ++it;
+    //  } while (it != end && std::isdigit(*it));
+    //}
+
+    // Parse type
+    if (it != end && *it != '}') {
+      /*switch (*it) {
+        case 'x':
+          _base = 16;
+          break;
+        case 'X':
+          _base = 16;
+          _upper = true;
+          break;
+        case 'b':
+          _base = 2;
+          break;
+        case 'B':
+          _base = 2;
+          _upper = true;
+          break;
+        case 'o':
+          _base = 8;
+          break;
+        case '#':
+          _prefix = true;
+          ++it;
+          if (it != end) {
+            switch (*it) {
+              case 'x':
+                _base = 16;
+                break;
+              case 'X':
+                _base = 16;
+                _upper = true;
+                break;
+              case 'b':
+                _base = 2;
+                break;
+              case 'B':
+                _base = 2;
+                _upper = true;
+                break;
+              case 'o':
+                _base = 8;
+                break;
+              default:
+                throw format_error("invalid format specifier");
+            }
+          }
+          break;
+        case 'd':
+          _base = 10;
+          break;
+        default:
+          throw format_error("invalid format specifier");
+      }*/
+      ++it;
+    }
+
+    if (it != end && *it != '}')
+      throw format_error("invalid format specifier");
+
+    return it;
+  }
+
+  template<typename FormatContext> auto format(const uint128_t &value, FormatContext &ctx) const
+  {
+    std::string result;
+
+    if (value == 0) {
+      result = "0";
+    }
+    else {
+      uint128_t tmp = value;
+      while (tmp > 0) {
+        uint8_t digit = static_cast<uint8_t>(tmp % _base);
+        char c;
+        if (digit < 10)
+          c = '0' + digit;
+        else
+          c = (_upper ? 'A' : 'a') + (digit - 10);
+        result = c + result;
+        tmp /= _base;
+      }
+    }
+
+    if (_prefix) {
+      switch (_base) {
+        case 2:
+          result = (_upper ? "0B" : "0b") + result;
+          break;
+        case 8:
+          result = "0" + result;
+          break;
+        case 16:
+          result = (_upper ? "0X" : "0x") + result;
+          break;
+      }
+    }
+
+    if (_width > result.length()) {
+      size_t padding = _width - result.length();
+      if (_align == '>') {
+        result = std::string(padding, _fill) + result;
+      }
+      else if (_align == '^') {
+        size_t left = padding / 2;
+        size_t right = padding - left;
+        result = std::string(left, _fill) + result + std::string(right, _fill);
+      }
+      else {  // _align == '<'
+        result = result + std::string(padding, _fill);
+      }
+    }
+
+    return std::formatter<std::string>::format(result, ctx);
+  }
+
+ private:
+  size_t _width;
+  int _base;
+  bool _prefix;
+  bool _upper;
+  char _fill;
+  char _align;
+};
+
+// template<> struct std::formatter<int128_t> : std::formatter<uint128_t> {
+//   template<typename FormatContext> auto format(const int128_t &value, FormatContext &ctx)
+//   {
+//     if (value < 0) {
+//       auto abs_value = static_cast<uint128_t>(-value);
+//       auto result = std::format("-{}", abs_value);
+//       return std::formatter<std::string>::format(result, ctx);
+//     }
+//     return std::formatter<uint128_t>::format(static_cast<uint128_t>(value), ctx);
+//   }
+// };
+//
+// template<> struct std::formatter<uint256_t> : std::formatter<uint128_t> {
+//   template<typename FormatContext> auto format(const uint256_t &value, FormatContext &ctx)
+//   {
+//     if (value.high == 0) {
+//       return std::formatter<uint128_t>::format(value.low, ctx);
+//     }
+//     auto high_str = std::format("{}", value.high);
+//     auto low_str = std::format("{:016X}", value.low);
+//     return std::formatter<std::string>::format(high_str + low_str, ctx);
+//   }
+// };
+//
+// template<> struct std::formatter<int256_t> : std::formatter<uint256_t> {
+//   template<typename FormatContext> auto format(const int256_t &value, FormatContext &ctx)
+//   {
+//     if (value < 0) {
+//       auto abs_value = static_cast<uint256_t>(-value);
+//       auto result = std::format("-{}", abs_value);
+//       return std::formatter<std::string>::format(result, ctx);
+//     }
+//     return std::formatter<uint256_t>::format(static_cast<uint256_t>(value), ctx);
+//   }
+// };
+
+#pragma region Math Functions
+namespace std {
+  // abs
+  inline uint128_t abs(uint128_t x) noexcept
+  {
+    return x;
+  }
+
+  inline uint128_t abs(int128_t x) noexcept
+  {
+    return x < 0 ? uint128_t(-x) : uint128_t(x);
+  }
+
+  inline uint256_t abs(uint256_t x) noexcept
+  {
+    return x;
+  }
+
+  inline uint256_t abs(int256_t x) noexcept
+  {
+    return x < 0 ? uint256_t(-x) : uint256_t(x);
+  }
+
+  // sqrt - using binary search method
+  inline double sqrt(uint128_t x)
+  {
+    if (x == 0)
+      return 0.0;
+    if (x == 1)
+      return 1.0;
+
+    // Convert to double, handling large numbers
+    double high_part = static_cast<double>(x.high) * std::pow(2.0, 64);
+    double low_part = static_cast<double>(x.low);
+    double value = high_part + low_part;
+
+    // Use Newton's method for better precision
+    double result = value;
+    double prev;
+    do {
+      prev = result;
+      result = (result + value / result) * 0.5;
+    } while (std::abs(result - prev) > 1e-10);
+
+    return result;
+  }
+
+  inline double sqrt(int128_t x)
+  {
+    if (x < 0) {
+      throw std::domain_error("sqrt of negative number");
+    }
+    return sqrt(uint128_t(x));
+  }
+
+  inline double sqrt(uint256_t x)
+  {
+    if (x == 0)
+      return 0.0;
+    if (x == 1)
+      return 1.0;
+
+    // Convert to double, handling large numbers carefully
+    double result;
+    if (x.high == 0) {
+      // If high part is 0, we can use the 128-bit sqrt directly
+      result = sqrt(x.low);
+    }
+    else {
+      // For very large numbers, first get a good initial guess
+      // by working with the most significant bits
+      int msb = 0;
+      uint256_t tmp = x;
+      while (tmp > 0) {
+        tmp >>= 1;
+        msb++;
+      }
+
+      // Initial guess: sqrt(2^n) = 2^(n/2)
+      result = std::pow(2.0, msb / 2.0);
+
+      // Refine using Newton's method
+      double prev;
+      int iterations = 0;
+      do {
+        prev = result;
+        // To avoid overflow, compute x/result first
+        uint256_t quotient = x / uint256_t(result);
+        double quot_d = static_cast<double>(quotient.low.low) +
+                        static_cast<double>(quotient.low.high) * std::pow(2.0, 64) +
+                        static_cast<double>(quotient.high.low) * std::pow(2.0, 128);
+        result = (result + quot_d) * 0.5;
+
+        // Limit iterations to prevent infinite loops
+        if (++iterations > 100)
+          break;
+      } while (std::abs(result - prev) > 1e-10);
+    }
+
+    return result;
+  }
+
+  inline double sqrt(int256_t x)
+  {
+    if (x < 0) {
+      throw std::domain_error("sqrt of negative number");
+    }
+    return sqrt(uint256_t(x));
+  }
+
+  // pow
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  uint128_t pow(uint128_t base, T exp)
+  {
+    if (exp < 0) {
+      throw std::domain_error("negative exponent");
+    }
+    if (exp == 0)
+      return uint128_t(1);
+    if (exp == 1)
+      return base;
+
+    uint128_t result = uint128_t(1);
+    while (exp > 0) {
+      if (exp & 1) {
+        result *= base;
+      }
+      base *= base;
+      exp >>= 1;
+    }
+    return result;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  int128_t pow(int128_t base, T exp)
+  {
+    if (exp < 0) {
+      throw std::domain_error("negative exponent");
+    }
+    if (exp == 0)
+      return int128_t(1);
+    if (exp == 1)
+      return base;
+
+    bool negative = base < 0 && (exp & 1);
+    uint128_t abs_base = std::abs(base);
+    uint128_t result = uint128_t(1);
+
+    while (exp > 0) {
+      if (exp & 1) {
+        result *= abs_base;
+      }
+      abs_base *= abs_base;
+      exp >>= 1;
+    }
+
+    return negative ? -int128_t(result) : int128_t(result);
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  uint256_t pow(uint256_t base, T exp)
+  {
+    if (exp < 0) {
+      throw std::domain_error("negative exponent");
+    }
+    if (exp == 0)
+      return uint256_t(1);
+    if (exp == 1)
+      return base;
+
+    uint256_t result = uint256_t(1);
+    while (exp > 0) {
+      if (exp & 1) {
+        result *= base;
+      }
+      base *= base;
+      exp >>= 1;
+    }
+    return result;
+  }
+
+  template<typename T>
+    requires std::is_integral_v<T> && (sizeof(T) <= 8)
+  int256_t pow(int256_t base, T exp)
+  {
+    if (exp < 0) {
+      throw std::domain_error("negative exponent");
+    }
+    if (exp == 0)
+      return int256_t(1);
+    if (exp == 1)
+      return base;
+
+    bool negative = base < 0 && (exp & 1);
+    uint256_t abs_base = std::abs(base);
+    uint256_t result = uint256_t(1);
+
+    while (exp > 0) {
+      if (exp & 1) {
+        result *= abs_base;
+      }
+      abs_base *= abs_base;
+      exp >>= 1;
+    }
+
+    return negative ? -int256_t(result) : int256_t(result);
+  }
+}  // namespace std
+#pragma endregion

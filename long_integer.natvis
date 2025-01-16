@@ -3,7 +3,7 @@
   <!-- Todo: fix this, the synthetic values are not showing -->
   <Type Name="uint128_t">
     <DisplayString Condition="high == 0">{{value = {low}}}</DisplayString>
-    <DisplayString>{{value = {high}:{low} (0x{high,X}:0x{low,X})}}</DisplayString>
+    <DisplayString>{{value = {high}:{low} ({high,X}:{low,X})}}</DisplayString>
     <Expand>
       <Item Name="[low]">low</Item>
       <Item Name="[high]">high</Item>
@@ -22,8 +22,8 @@
   
   <Type Name="int128_t">
     <DisplayString Condition="value.high == 0">{{value = {value.low}}}</DisplayString>
-    <DisplayString Condition="(value.high &amp; 0x8000000000000000) == 0">{{value = {value.high}:{value.low} (0x{value.high,X}:0x{value.low,X})}}</DisplayString>
-    <DisplayString>{{value = (negative) {value.high}:{value.low} (0x{value.high,X}:0x{value.low,X})}}</DisplayString>
+    <DisplayString Condition="(value.high &amp; 0x8000000000000000) == 0">{{value = {value.high}:{value.low} ({value.high,X}:{value.low,X})}}</DisplayString>
+    <DisplayString>{{value = (negative) {value.high}:{value.low} ({value.high,X}:{value.low,X})}}</DisplayString>
     <Expand>
       <Item Name="[value]">value</Item>
       <Synthetic Name="[hex]">
@@ -42,12 +42,12 @@
   
   <Type Name="uint256_t">
     <DisplayString Condition="high.high == 0 &amp;&amp; high.low == 0">{{value = {low}}}</DisplayString>
-    <DisplayString>{{value = {high}:{low} (0x{high.high,X}{high.low,X}:0x{low.high,X}{low.low,X})}}</DisplayString>
+    <DisplayString>{{value = {high}:{low} ({high.high,X}{high.low,X}:{low.high,X}{low.low,X})}}</DisplayString>
     <Expand>
       <Item Name="[low]">low</Item>
       <Item Name="[high]">high</Item>
       <Synthetic Name="[hex]">
-        <DisplayString>0x{high.high,X}{high.low,X}{low.high,X}{low.low,X}</DisplayString>
+        <DisplayString>{high.high,X}{high.low,X}{low.high,X}{low.low,X}</DisplayString>
       </Synthetic>
       <Synthetic Name="[decimal]">
         <DisplayString Condition="high.high == 0 &amp;&amp; high.low == 0">{low}</DisplayString>
@@ -61,7 +61,7 @@
   
   <Type Name="int256_t">
     <DisplayString Condition="value.high.high == 0 &amp;&amp; value.high.low == 0">{{value = {value.low}}}</DisplayString>
-    <DisplayString Condition="(value.high.high &amp; 0x8000000000000000) == 0">{{value = {value.high}:{value.low} (0x{value.high.high,X}{value.high.low,X}:0x{value.low.high,X}{value.low.low,X})}}</DisplayString>
+    <DisplayString Condition="(value.high.high &amp; 0x8000000000000000) == 0">{{value = {value.high}:{value.low} ({value.high.high,X}{value.high.low,X}:{value.low.high,X}{value.low.low,X})}}</DisplayString>
     <DisplayString>{{value = (negative) {value.high}:{value.low} (0x{value.high.high,X}{value.high.low,X}:0x{value.low.high,X}{value.low.low,X})}}</DisplayString>
     <Expand>
       <Item Name="[value]">value</Item>

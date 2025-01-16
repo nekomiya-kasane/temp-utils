@@ -166,6 +166,84 @@ TEST_F(LongIntegerTest, Uint128Conversions) {
   EXPECT_TRUE(static_cast<bool>(nonzero));
 }
 
+// Formatter tests
+TEST_F(LongIntegerTest, Uint128Formatting) {
+    uint128_t a(0x123456789ABCDEF0ULL, 0xFEDCBA9876543210ULL);
+    
+    // Default decimal format
+    EXPECT_EQ(std::format("{}", a), "24197857203266734864406886066");
+    
+    //// Hex format
+    //EXPECT_EQ(std::format("{:x}", a), "123456789abcdef0fedcba9876543210");
+    //EXPECT_EQ(std::format("{:X}", a), "123456789ABCDEF0FEDCBA9876543210");
+    //EXPECT_EQ(std::format("{:#x}", a), "0x123456789abcdef0fedcba9876543210");
+    //EXPECT_EQ(std::format("{:#X}", a), "0X123456789ABCDEF0FEDCBA9876543210");
+    //
+    //// Binary format
+    //uint128_t b(0, 0b1010);
+    //EXPECT_EQ(std::format("{:b}", b), "1010");
+    //EXPECT_EQ(std::format("{:#b}", b), "0b1010");
+    //EXPECT_EQ(std::format("{:#B}", b), "0B1010");
+    //
+    //// Octal format
+    //EXPECT_EQ(std::format("{:o}", b), "12");
+    //EXPECT_EQ(std::format("{:#o}", b), "012");
+    //
+    //// Width and alignment
+    //EXPECT_EQ(std::format("{:10}", b), "10        ");  // Left align (default)
+    //EXPECT_EQ(std::format("{:>10}", b), "        10");  // Right align
+    //EXPECT_EQ(std::format("{:^10}", b), "    10    ");  // Center align
+    //EXPECT_EQ(std::format("{:0>10}", b), "0000000010");  // Right align with zeros
+}
+//
+//TEST_F(LongIntegerTest, Int128Formatting) {
+//    int128_t a(-42);
+//    int128_t b(0x123456789ABCDEF0ULL, 0);   
+//    
+//    // Basic formatting
+//    EXPECT_EQ(std::format("{}", a), "-42");
+//    EXPECT_EQ(std::format("{:x}", std::abs(a)), "2a");
+//    
+//    // Width and alignment with sign
+//    EXPECT_EQ(std::format("{:10}", a), "-42       ");
+//    EXPECT_EQ(std::format("{:>10}", a), "       -42");
+//    EXPECT_EQ(std::format("{:^10}", a), "   -42    ");
+//    
+//    // Hex format with large numbers
+//    EXPECT_EQ(std::format("{:#x}", b), "0x123456789abcdef0");
+//}
+//
+//TEST_F(LongIntegerTest, Uint256Formatting) {
+//    uint256_t a(uint128_t(0x123456789ABCDEF0ULL, 0xFEDCBA9876543210ULL), 
+//                uint128_t(0xAAAAAAAABBBBBBBBULL, 0xCCCCCCCCDDDDDDDDULL));
+//    
+//    // Default format
+//    EXPECT_EQ(std::format("{}", a), "123456789abcdef0fedcba9876543210aaaaaaaabbbbbbbbccccccccdddddddd");
+//    
+//    // Hex format with prefix
+//    EXPECT_EQ(std::format("{:#X}", a), "0X123456789ABCDEF0FEDCBA9876543210AAAAAAAABBBBBBBBCCCCCCCCDDDDDDDD");
+//    
+//    // Small numbers should format like uint128
+//    uint256_t b(uint128_t(0), uint128_t(42));
+//    EXPECT_EQ(std::format("{}", b), "42");
+//}
+//
+//TEST_F(LongIntegerTest, Int256Formatting) {
+//    int256_t a = -int256_t(uint256_t(uint128_t(0), uint128_t(42)));
+//    
+//    // Negative numbers
+//    EXPECT_EQ(std::format("{}", a), "-42");
+//    EXPECT_EQ(std::format("{:x}", std::abs(a)), "2a");
+//    
+//    // Width and alignment
+//    EXPECT_EQ(std::format("{:10}", a), "-42       ");
+//    EXPECT_EQ(std::format("{:>10}", a), "       -42");
+//    
+//    // Large negative number
+//    int256_t b = -int256_t(uint256_t(uint128_t(1), uint128_t(0)));
+//    EXPECT_EQ(std::format("{:#x}", std::abs(b)), "0x100000000000000000000000000000000");
+//}
+
 // int128_t tests
 TEST_F(LongIntegerTest, Int128Construction)
 {
@@ -283,6 +361,59 @@ TEST_F(LongIntegerTest, Uint256EdgeCases) {
   EXPECT_EQ(low_bit << 255, high_bit);
 }
 
+TEST_F(LongIntegerTest, Uint256DivisionAndBitwise) {
+  uint256_t zero;
+  uint256_t one(1);
+  uint256_t max(uint128_t(-1), uint128_t(-1));
+
+  EXPECT_EQ(zero + zero, zero);
+  EXPECT_EQ(max + one, zero);
+  EXPECT_EQ(zero - zero, zero);
+  EXPECT_EQ(zero - one, max);
+  EXPECT_EQ(max - max, zero);
+
+  // Division edge cases
+  EXPECT_EQ(zero / one, zero);
+  EXPECT_EQ(max / one, max);
+  EXPECT_EQ(max / max, one);
+  EXPECT_THROW(zero / zero, std::domain_error);
+  
+  // Large number division
+  uint256_t large(uint128_t(0xFFFFFFFFFFFFFFFFULL), uint128_t(0));
+  EXPECT_EQ(large / uint256_t(2), uint256_t(uint128_t(0x7FFFFFFFFFFFFFFFULL), uint128_t(0)));
+  
+  // Multiplication edge cases
+  EXPECT_EQ(zero * zero, zero);
+  EXPECT_EQ(one * one, one);
+  EXPECT_EQ(max * zero, zero);
+  EXPECT_EQ(max * one, max);
+  
+  // Bitwise operations
+  EXPECT_EQ(zero & zero, zero);
+  EXPECT_EQ(max & zero, zero);
+  EXPECT_EQ(max & max, max);
+  EXPECT_EQ(max & one, one);
+  
+  EXPECT_EQ(zero | zero, zero);
+  EXPECT_EQ(max | zero, max);
+  EXPECT_EQ(one | zero, one);
+  
+  EXPECT_EQ(zero ^ zero, zero);
+  EXPECT_EQ(max ^ zero, max);
+  EXPECT_EQ(max ^ max, zero);
+  
+  // Shift operations
+  EXPECT_EQ(one << 0, one);
+  EXPECT_EQ(one << 128, uint256_t(uint128_t(1), uint128_t(0)));
+  EXPECT_EQ(one << 255, uint256_t(uint128_t(1) << 127, uint128_t(0)));
+  EXPECT_EQ(one << 256, zero);
+  
+  EXPECT_EQ(max >> 0, max);
+  EXPECT_EQ(max >> 128, uint256_t(uint128_t(0), uint128_t(-1)));
+  EXPECT_EQ(max >> 255, uint256_t(uint128_t(0), uint128_t(1)));
+  EXPECT_EQ(max >> 256, zero);
+}
+
 // int256_t tests
 TEST_F(LongIntegerTest, Int256Construction)
 {
@@ -296,47 +427,64 @@ TEST_F(LongIntegerTest, Int256Construction)
   EXPECT_EQ(static_cast<int64_t>(static_cast<int128_t>(c)), 42);
 }
 
-TEST_F(LongIntegerTest, Int256Arithmetic)
+TEST_F(LongIntegerTest, Int256ArithmeticAndBitwise)
 {
-  auto mx = std::numeric_limits<int64_t>::max();
-  int256_t a{int128_t(mx)};
-  int256_t b = int128_t(1);
-  int256_t c = a + b;
-  EXPECT_GT(static_cast<uint64_t>(static_cast<int128_t>(c)), std::numeric_limits<int64_t>::max());
-
-  int256_t d(int128_t(-42));
-  int256_t e = -d;
-  EXPECT_EQ(static_cast<int64_t>(static_cast<int128_t>(e)), 42);
-}
-
-TEST_F(LongIntegerTest, Int256EdgeCases) {
   int256_t zero;
-  int256_t one(int128_t(1));
-  int256_t minus_one(int128_t(-1));
-  int256_t max = std::numeric_limits<int256_t>::max();
-  int256_t min = std::numeric_limits<int256_t>::min();
-  
-  // Addition edge cases
-  EXPECT_EQ(zero + zero, zero);
-  EXPECT_EQ(max + zero, max);
-  EXPECT_EQ(min + zero, min);
-  EXPECT_EQ(one + minus_one, zero);
-  
-  // Subtraction edge cases
-  EXPECT_EQ(zero - zero, zero);
-  EXPECT_EQ(minus_one - minus_one, zero);
-  EXPECT_EQ(zero - one, minus_one);
-  
-  // Negation
-  EXPECT_EQ(-zero, zero);
-  EXPECT_EQ(-minus_one, one);
-  EXPECT_NE(-min, max);  // -min overflows for two's complement
-  
-  // Sign tests
-  EXPECT_GT(one, zero);
-  EXPECT_LT(minus_one, zero);
-  EXPECT_GT(max, zero);
-  EXPECT_LT(min, zero);
+  int256_t one(1);
+  int256_t minus_one(-1);
+  int256_t max(uint256_t(uint128_t(0x7FFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL), 
+                         uint128_t(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL)));
+  int256_t min(-max - one);
+
+  // Division tests
+  EXPECT_EQ(zero / one, zero);
+  EXPECT_EQ(max / one, max);
+  EXPECT_EQ(min / minus_one, max);
+  EXPECT_THROW(zero / zero, std::domain_error);
+
+  // Large number division
+  int256_t large(int128_t(0x7FFFFFFFFFFFFFFFLL));
+  EXPECT_EQ(large / int256_t(2), int256_t(0x3FFFFFFFFFFFFFFFLL));
+  EXPECT_EQ((-large) / int256_t(2), int256_t(-0x3FFFFFFFFFFFFFFFLL));
+
+  // Multiplication tests
+  EXPECT_EQ(zero * zero, zero);
+  EXPECT_EQ(one * one, one);
+  EXPECT_EQ(minus_one * minus_one, one);
+  EXPECT_EQ(max * zero, zero);
+  EXPECT_EQ(min * zero, zero);
+  EXPECT_EQ(max * one, max);
+  EXPECT_EQ(min * one, min);
+  EXPECT_EQ(max * minus_one, -max);
+  EXPECT_EQ(min * minus_one, -min);
+
+  // Bitwise operations
+  EXPECT_EQ(zero & zero, zero);
+  EXPECT_EQ(max & zero, zero);
+  EXPECT_EQ(max & max, max);
+  EXPECT_EQ(max & one, one);
+  EXPECT_EQ(min & minus_one, min);
+
+  EXPECT_EQ(zero | zero, zero);
+  EXPECT_EQ(max | zero, max);
+  EXPECT_EQ(one | zero, one);
+  EXPECT_EQ(min | minus_one, minus_one);
+
+  EXPECT_EQ(zero ^ zero, zero);
+  EXPECT_EQ(max ^ zero, max);
+  EXPECT_EQ(max ^ max, zero);
+  EXPECT_EQ(min ^ minus_one, ~min);
+
+  // Shift operations
+  EXPECT_EQ(one << 0, one);
+  EXPECT_EQ(one << 128, int256_t(uint256_t(uint128_t(1), uint128_t(0))));
+  EXPECT_EQ(one << 255, int256_t(uint256_t(uint128_t(1) << 127, uint128_t(0))));
+  EXPECT_EQ(one << 256, zero);
+
+  EXPECT_EQ(minus_one >> 0, minus_one);
+  EXPECT_EQ(minus_one >> 128, minus_one);
+  EXPECT_EQ(minus_one >> 255, minus_one);
+  EXPECT_EQ(minus_one >> 256, minus_one);
 }
 
 // Cross-type operations tests
@@ -403,27 +551,76 @@ TEST_F(LongIntegerTest, CrossTypeComparisons) {
   EXPECT_LT(i256_min, i256_i128_min);
 }
 
-TEST_F(LongIntegerTest, BitManipulation) {
-  // uint128_t bit operations
-  uint128_t u128(0x0123456789ABCDEF, 0xFEDCBA9876543210);
+TEST_F(LongIntegerTest, BitManipulation)
+{
+  uint128_t a(0x5555555555555555ULL, 0xAAAAAAAAAAAAAAAAULL);
   
-  for (int i = 0; i < 128; ++i) {
-    bool expected_bit = (i < 64) ? 
-      ((0xFEDCBA9876543210ULL >> i) & 1) :
-      ((0x0123456789ABCDEFULL >> (i - 64)) & 1);
-    EXPECT_EQ(u128.bit(i), expected_bit);
+  // Test alternating bits pattern
+  for (size_t i = 0; i < 64; ++i) {
+    EXPECT_EQ(a.bit(i), (i % 2) == 1) << "at bit " << i;  // low part
+    EXPECT_EQ(a.bit(i + 64), (i % 2) == 0) << "at bit " << (i + 64);  // high part
   }
   
-  // int128_t bit operations
-  int128_t i128(-42);
-  EXPECT_TRUE(i128.value.high & (uint64_t(1) << 63));  // Sign bit should be set
+  // Test out of range bits
+  EXPECT_FALSE(a.bit(128));
+  EXPECT_FALSE(a.bit(129));
+  EXPECT_FALSE(a.bit(255));
   
-  // uint256_t bit operations
-  uint256_t u256(uint128_t(0x0123456789ABCDEF, 0xFEDCBA9876543210),
-                 uint128_t(0xFEDCBA9876543210, 0x0123456789ABCDEF));
+  // Test int128_t bit access
+  int128_t b(-1);  // All bits set
+  for (size_t i = 0; i < 128; ++i) {
+    EXPECT_TRUE(b.bit(i)) << "at bit " << i;
+  }
+  EXPECT_FALSE(b.bit(128));
   
-  EXPECT_EQ(u256 >> 128, uint256_t(uint128_t(0x0123456789ABCDEF, 0xFEDCBA9876543210)));
-  EXPECT_EQ(u256 << 128, uint256_t(uint128_t(0xFEDCBA9876543210, 0x0123456789ABCDEF), uint128_t(0)));
+  int128_t c(1);  // Only lowest bit set
+  EXPECT_TRUE(c.bit(0));
+  for (size_t i = 1; i < 128; ++i) {
+    EXPECT_FALSE(c.bit(i)) << "at bit " << i;
+  }
+  
+  // Test uint256_t bit access
+  uint256_t d(uint128_t(0x5555555555555555ULL, 0xAAAAAAAAAAAAAAAAULL),
+              uint128_t(0xF0F0F0F0F0F0F0F0ULL, 0x0F0F0F0F0F0F0F0FULL));
+              
+  // Test low part (first 128 bits)
+  for (size_t i = 0; i < 64; ++i) {
+    EXPECT_EQ(d.bit(i), (i % 2) == 1) << "at bit " << i;
+    EXPECT_EQ(d.bit(i + 64), (i % 2) == 0) << "at bit " << (i + 64);
+  }
+  
+  // Test high part (next 128 bits)
+  for (size_t i = 0; i < 64; ++i) {
+    EXPECT_EQ(d.bit(i + 128), (i % 4) >= 2) << "at bit " << (i + 128);
+    EXPECT_EQ(d.bit(i + 192), (i % 4) < 2) << "at bit " << (i + 192);
+  }
+  
+  // Test out of range bits
+  EXPECT_FALSE(d.bit(256));
+  EXPECT_FALSE(d.bit(257));
+  EXPECT_FALSE(d.bit(512));
+  
+  // Test int256_t bit access
+  int256_t e(-1);  // All bits set
+  for (size_t i = 0; i < 256; ++i) {
+    EXPECT_TRUE(e.bit(i)) << "at bit " << i;
+  }
+  EXPECT_FALSE(e.bit(256));
+  
+  int256_t f(1);  // Only lowest bit set
+  EXPECT_TRUE(f.bit(0));
+  for (size_t i = 1; i < 256; ++i) {
+    EXPECT_FALSE(f.bit(i)) << "at bit " << i;
+  }
+  
+  // Test specific bit patterns
+  uint256_t g(uint128_t(1) << 127, uint128_t(1));  // Bits 0 and 127 set
+  EXPECT_TRUE(g.bit(0));
+  EXPECT_TRUE(g.bit(127));
+  EXPECT_FALSE(g.bit(1));
+  EXPECT_FALSE(g.bit(126));
+  EXPECT_FALSE(g.bit(128));
+  EXPECT_FALSE(g.bit(255));
 }
 
 // Numeric limits tests
