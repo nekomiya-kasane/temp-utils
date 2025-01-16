@@ -15,7 +15,7 @@ find_package(benchmark REQUIRED)
 find_package(mimalloc CONFIG REQUIRED)
 #find_package(Hyperscan REQUIRED)
 
-add_compile_options(/utf-8 /fsanitize=address)
+add_compile_options(/utf-8 /fsanitize=address /JMC)
 
 add_compile_definitions(-DMIMALLOC_VERBOSE=1)
 
@@ -36,7 +36,6 @@ add_library(ustring
     ustring.h
     ustring.natvis
     inline_first_storage.h
-    signal.h
 )
 
 add_executable(ustring_test
@@ -47,7 +46,6 @@ add_executable(ustring_test
     ustring_search_test.cpp
     ustring_transform_test.cpp
     ustring_format_test.cpp
-    signal_test.cpp
 )
 
 target_link_libraries(ustring_test
@@ -141,4 +139,44 @@ target_link_libraries(basic_concepts_test
 )
   
 gtest_discover_tests(basic_concepts_test)
+  
+add_executable(signal_test
+    basic_signal.h
+    basic_signal.cpp
+    basic_signal_test.cpp
+)
+
+target_link_libraries(signal_test
+    PRIVATE
+    GTest::gtest
+    GTest::gtest_main
+)
+  
+gtest_discover_tests(signal_test)
+  
+add_executable(unique_id_test
+    unique_id.h
+    unique_id_test.cpp
+)
+
+target_link_libraries(unique_id_test
+    PRIVATE
+    GTest::gtest
+    GTest::gtest_main
+)
+  
+gtest_discover_tests(unique_id_test)
+
+add_executable(long_integer_test
+    long_integer.h
+    long_integer_test.cpp
+)
+
+target_link_libraries(long_integer_test
+    PRIVATE
+    GTest::gtest
+    GTest::gtest_main
+)
+  
+gtest_discover_tests(long_integer_test)
   
