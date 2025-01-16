@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="uint128_t">
+    <DisplayString Condition="high == 0">{{value = {low}}}</DisplayString>
+    <DisplayString>{{value = {high}:{low} ({high,x}:{low,x})}}</DisplayString>
+    <Expand>
+      <Item Name="[low]">low</Item>
+      <Item Name="[high]">high</Item>
+      <Item Name="[hex]">*(unsigned __int64[2])this,h</Item>
+    </Expand>
+  </Type>
+  
+  <Type Name="int128_t">
+    <DisplayString Condition="value.high == 0">{{value = {value.low}}}</DisplayString>
+    <DisplayString Condition="(value.high &amp; 0x8000000000000000) == 0">{{value = {value.high}:{value.low} ({value.high,x}:{value.low,x})}}</DisplayString>
+    <DisplayString>{{value = -{(-*this)} ({value.high,x}:{value.low,x})}}</DisplayString>
+    <Expand>
+      <Item Name="[value]">value</Item>
+      <Item Name="[hex]">*(unsigned __int64[2])&amp;value,h</Item>
+    </Expand>
+  </Type>
+  
+  <Type Name="uint256_t">
+    <DisplayString Condition="high == 0">{{value = {low}}}</DisplayString>
+    <DisplayString>{{value = {high}:{low} ({high,x}:{low,x})}}</DisplayString>
+    <Expand>
+      <Item Name="[low]">low</Item>
+      <Item Name="[high]">high</Item>
+      <Item Name="[hex]">*(unsigned __int64[4])this,h</Item>
+    </Expand>
+  </Type>
+  
+  <Type Name="int256_t">
+    <DisplayString Condition="value.high == 0">{{value = {value.low}}}</DisplayString>
+    <DisplayString Condition="(value.high &amp; 0x8000000000000000000000000000000) == 0">{{value = {value.high}:{value.low} ({value.high,x}:{value.low,x})}}</DisplayString>
+    <DisplayString>{{value = -{(-*this)} ({value.high,x}:{value.low,x})}}</DisplayString>
+    <Expand>
+      <Item Name="[value]">value</Item>
+      <Item Name="[hex]">*(unsigned __int64[4])&amp;value,h</Item>
+    </Expand>
+  </Type>
+</AutoVisualizer>

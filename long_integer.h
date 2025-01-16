@@ -833,7 +833,7 @@ struct uint256_t {
   // Additional operators for built-in types and uint128_t
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  uint256_t &operator&=(T rhs) 
+  uint256_t &operator&=(T rhs)
   {
     low &= rhs;
     high = static_cast<uint128_t>(0);
@@ -1644,9 +1644,7 @@ constexpr std::strong_ordering operator<=>(const int128_t &lhs, const T &rhs) no
       return lhs.value.low <=> static_cast<uint64_t>(rhs);
     // Both negative
     // todo: possibly wrong here
-    if ((lhs.value.high ^ 0x7FFF'FFFF'FFFF'FFFF) != 0 &&
-        lhs.value.high & 0x8000'0000'0000'0000)
-    {
+    if ((lhs.value.high ^ 0x7FFF'FFFF'FFFF'FFFF) != 0 && lhs.value.high & 0x8000'0000'0000'0000) {
       return std::strong_ordering::less;
     }
     return static_cast<int64_t>(rhs) <=> lhs.value.low;
@@ -1837,10 +1835,7 @@ constexpr std::strong_ordering operator<=>(const int256_t &lhs, const int256_t &
     return rhs_negative <=> lhs_negative;  // Negative < Positive
 
   // Same sign, compare magnitudes
-  if (!lhs_negative)
-    return lhs.value <=> rhs.value;
-  else
-    return rhs.value <=> lhs.value;  // For negative numbers, reverse comparison
+  return lhs.value <=> rhs.value;
 }
 
 constexpr bool operator==(const int256_t &lhs, const int256_t &rhs) noexcept
