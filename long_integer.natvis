@@ -1,42 +1,81 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <!-- Todo: fix this, the synthetic values are not showing -->
   <Type Name="uint128_t">
     <DisplayString Condition="high == 0">{{value = {low}}}</DisplayString>
-    <DisplayString>{{value = {high}:{low} ({high,x}:{low,x})}}</DisplayString>
+    <DisplayString>{{value = {high}:{low} (0x{high,X}:0x{low,X})}}</DisplayString>
     <Expand>
       <Item Name="[low]">low</Item>
       <Item Name="[high]">high</Item>
-      <Item Name="[hex]">*(unsigned __int64[2])this,h</Item>
+      <Synthetic Name="[hex]">
+        <DisplayString>0x{high,X}{low,X}</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[decimal]">
+        <DisplayString Condition="high == 0">{low}</DisplayString>
+        <DisplayString>{high}:{low}</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[binary]">
+        <DisplayString>high: {high,bb} low: {low,bb}</DisplayString>
+      </Synthetic>
     </Expand>
   </Type>
   
   <Type Name="int128_t">
     <DisplayString Condition="value.high == 0">{{value = {value.low}}}</DisplayString>
-    <DisplayString Condition="(value.high &amp; 0x8000000000000000) == 0">{{value = {value.high}:{value.low} ({value.high,x}:{value.low,x})}}</DisplayString>
-    <DisplayString>{{value = -{(-*this)} ({value.high,x}:{value.low,x})}}</DisplayString>
+    <DisplayString Condition="(value.high &amp; 0x8000000000000000) == 0">{{value = {value.high}:{value.low} (0x{value.high,X}:0x{value.low,X})}}</DisplayString>
+    <DisplayString>{{value = (negative) {value.high}:{value.low} (0x{value.high,X}:0x{value.low,X})}}</DisplayString>
     <Expand>
       <Item Name="[value]">value</Item>
-      <Item Name="[hex]">*(unsigned __int64[2])&amp;value,h</Item>
+      <Synthetic Name="[hex]">
+        <DisplayString>0x{value.high,X}{value.low,X}</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[decimal]">
+        <DisplayString Condition="value.high == 0">{value.low}</DisplayString>
+        <DisplayString Condition="(value.high &amp; 0x8000000000000000) == 0">{value.high}:{value.low}</DisplayString>
+        <DisplayString>(negative) {value.high}:{value.low}</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[binary]">
+        <DisplayString>high: {value.high,bb} low: {value.low,bb}</DisplayString>
+      </Synthetic>
     </Expand>
   </Type>
   
   <Type Name="uint256_t">
-    <DisplayString Condition="high == 0">{{value = {low}}}</DisplayString>
-    <DisplayString>{{value = {high}:{low} ({high,x}:{low,x})}}</DisplayString>
+    <DisplayString Condition="high.high == 0 &amp;&amp; high.low == 0">{{value = {low}}}</DisplayString>
+    <DisplayString>{{value = {high}:{low} (0x{high.high,X}{high.low,X}:0x{low.high,X}{low.low,X})}}</DisplayString>
     <Expand>
       <Item Name="[low]">low</Item>
       <Item Name="[high]">high</Item>
-      <Item Name="[hex]">*(unsigned __int64[4])this,h</Item>
+      <Synthetic Name="[hex]">
+        <DisplayString>0x{high.high,X}{high.low,X}{low.high,X}{low.low,X}</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[decimal]">
+        <DisplayString Condition="high.high == 0 &amp;&amp; high.low == 0">{low}</DisplayString>
+        <DisplayString>{high}:{low}</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[binary]">
+        <DisplayString>high.high: {high.high,bb} high.low: {high.low,bb} low.high: {low.high,bb} low.low: {low.low,bb}</DisplayString>
+      </Synthetic>
     </Expand>
   </Type>
   
   <Type Name="int256_t">
-    <DisplayString Condition="value.high == 0">{{value = {value.low}}}</DisplayString>
-    <DisplayString Condition="(value.high &amp; 0x8000000000000000000000000000000) == 0">{{value = {value.high}:{value.low} ({value.high,x}:{value.low,x})}}</DisplayString>
-    <DisplayString>{{value = -{(-*this)} ({value.high,x}:{value.low,x})}}</DisplayString>
+    <DisplayString Condition="value.high.high == 0 &amp;&amp; value.high.low == 0">{{value = {value.low}}}</DisplayString>
+    <DisplayString Condition="(value.high.high &amp; 0x8000000000000000) == 0">{{value = {value.high}:{value.low} (0x{value.high.high,X}{value.high.low,X}:0x{value.low.high,X}{value.low.low,X})}}</DisplayString>
+    <DisplayString>{{value = (negative) {value.high}:{value.low} (0x{value.high.high,X}{value.high.low,X}:0x{value.low.high,X}{value.low.low,X})}}</DisplayString>
     <Expand>
       <Item Name="[value]">value</Item>
-      <Item Name="[hex]">*(unsigned __int64[4])&amp;value,h</Item>
+      <Synthetic Name="[hex]">
+        <DisplayString>0x{value.high.high,X}{value.high.low,X}{value.low.high,X}{value.low.low,X}</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[decimal]">
+        <DisplayString Condition="value.high.high == 0 &amp;&amp; value.high.low == 0">{value.low}</DisplayString>
+        <DisplayString Condition="(value.high.high &amp; 0x8000000000000000) == 0">{value.high}:{value.low}</DisplayString>
+        <DisplayString>(negative) {value.high}:{value.low}</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[binary]">
+        <DisplayString>high.high: {value.high.high,bb} high.low: {value.high.low,bb} low.high: {value.low.high,bb} low.low: {value.low.low,bb}</DisplayString>
+      </Synthetic>
     </Expand>
   </Type>
 </AutoVisualizer>
