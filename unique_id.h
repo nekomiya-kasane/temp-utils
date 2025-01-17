@@ -60,7 +60,7 @@ namespace detail {
 }  // namespace detail
 
 template<typename T, size_t Size = sizeof(T)>
-  requires(std::is_integral_v<T> || std::is_enum_v<T>) && (Size <= sizeof(T))
+// requires(std::is_integral_v<T> || std::is_enum_v<T>) && (Size <= sizeof(T))
 class UniqueId {
  public:
   using value_type = T;
@@ -156,8 +156,8 @@ class UniqueId {
 
     T value = 0;
     for (size_t i = 0; i < size; ++i) {
-      uint8_t high = detail::hex_to_int(hex[i * 2]);
-      uint8_t low = detail::hex_to_int(hex[i * 2 + 1]);
+      uint8_t high = misc::hex_to_int(hex[i * 2]);
+      uint8_t low = misc::hex_to_int(hex[i * 2 + 1]);
       if (high == 0xFF || low == 0xFF)
         return false;
       value |= static_cast<T>((high << 4) | low) << (i * 8);
@@ -326,6 +326,7 @@ class UniqueId {
   }
 
  private:
+  template<typename T, size_t Size> friend class UniqueId;
   T _value;
 };
 
@@ -338,3 +339,8 @@ struct std::formatter<UniqueId<T, Size>> : std::formatter<std::string> {
         id.format(detail::parse_format_spec(ctx.format_spec())), ctx);
   }
 };
+
+using UniqueId8 = UniqueId<uint8_t, 1>;
+using UniqueId16 = UniqueId<uint16_t, 2>;
+using UniqueId32 = UniqueId<uint32_t, 4>;
+using UniqueId64 = UniqueId<uint64_t, 8>;

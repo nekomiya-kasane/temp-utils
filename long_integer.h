@@ -258,52 +258,52 @@ struct uint128_t {
 
 #pragma region Binary Operators
   // Binary operators
-  friend uint128_t operator+(const uint128_t &lhs, const uint128_t &rhs)
+  constexpr friend uint128_t operator+(const uint128_t &lhs, const uint128_t &rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy += rhs;
   }
-  friend uint128_t operator-(const uint128_t &lhs, const uint128_t &rhs)
+  constexpr friend uint128_t operator-(const uint128_t &lhs, const uint128_t &rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy -= rhs;
   }
-  friend uint128_t operator*(const uint128_t &lhs, const uint128_t &rhs)
+  constexpr friend uint128_t operator*(const uint128_t &lhs, const uint128_t &rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy *= rhs;
   }
-  friend uint128_t operator/(const uint128_t &lhs, const uint128_t &rhs)
+  constexpr friend uint128_t operator/(const uint128_t &lhs, const uint128_t &rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy /= rhs;
   }
-  friend uint128_t operator&(const uint128_t &lhs, const uint128_t &rhs)
+  constexpr friend uint128_t operator&(const uint128_t &lhs, const uint128_t &rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy &= rhs;
   }
-  friend uint128_t operator|(const uint128_t &lhs, const uint128_t &rhs)
+  constexpr friend uint128_t operator|(const uint128_t &lhs, const uint128_t &rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy |= rhs;
   }
-  friend uint128_t operator^(const uint128_t &lhs, const uint128_t &rhs)
+  constexpr friend uint128_t operator^(const uint128_t &lhs, const uint128_t &rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy ^= rhs;
   }
-  friend uint128_t operator<<(const uint128_t &lhs, int shift)
+  constexpr friend uint128_t operator<<(const uint128_t &lhs, int shift)
   {
     auto lhs_copy = lhs;
     return lhs_copy <<= shift;
   }
-  friend uint128_t operator>>(const uint128_t &lhs, int shift)
+  constexpr friend uint128_t operator>>(const uint128_t &lhs, int shift)
   {
     auto lhs_copy = lhs;
     return lhs_copy >>= shift;
   }
-  friend uint128_t operator%(const uint128_t &lhs, const uint128_t &rhs)
+  constexpr friend uint128_t operator%(const uint128_t &lhs, const uint128_t &rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy %= rhs;
@@ -314,7 +314,7 @@ struct uint128_t {
   // Additional operators for built-in types
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  uint128_t &operator&=(T rhs)
+  constexpr uint128_t &operator&=(T rhs)
   {
     low &= rhs;
     high = 0;
@@ -323,7 +323,7 @@ struct uint128_t {
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  uint128_t &operator|=(T rhs)
+  constexpr uint128_t &operator|=(T rhs)
   {
     low |= rhs;
     return *this;
@@ -331,7 +331,7 @@ struct uint128_t {
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  uint128_t &operator^=(T rhs)
+  constexpr uint128_t &operator^=(T rhs)
   {
     low ^= rhs;
     return *this;
@@ -339,7 +339,7 @@ struct uint128_t {
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  uint128_t &operator+=(T rhs)
+  constexpr uint128_t &operator+=(T rhs)
   {
     uint64_t old_low = low;
     low += rhs;
@@ -349,7 +349,7 @@ struct uint128_t {
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  uint128_t &operator-=(T rhs)
+  constexpr uint128_t &operator-=(T rhs)
   {
     uint64_t old_low = low;
     low -= rhs;
@@ -359,7 +359,7 @@ struct uint128_t {
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  uint128_t &operator*=(T rhs)
+  constexpr uint128_t &operator*=(T rhs)
   {
     uint64_t a = low & 0xFFFFFFFF;
     uint64_t b = low >> 32;
@@ -381,14 +381,14 @@ struct uint128_t {
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  uint128_t &operator/=(T rhs)
+  constexpr uint128_t &operator/=(T rhs)
   {
     return *this = *this / static_cast<uint128_t>(rhs);
   }
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  uint128_t &operator%=(T rhs)
+  constexpr uint128_t &operator%=(T rhs)
   {
     if (rhs == 0)
       throw std::domain_error("Modulo by zero");
@@ -417,7 +417,7 @@ struct uint128_t {
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  friend uint128_t operator&(const uint128_t &lhs, T rhs)
+  constexpr friend uint128_t operator&(const uint128_t &lhs, T rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy &= rhs;
@@ -425,7 +425,7 @@ struct uint128_t {
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  friend uint128_t operator|(const uint128_t &lhs, T rhs)
+  constexpr friend uint128_t operator|(const uint128_t &lhs, T rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy |= rhs;
@@ -433,7 +433,7 @@ struct uint128_t {
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  friend uint128_t operator^(const uint128_t &lhs, T rhs)
+  constexpr friend uint128_t operator^(const uint128_t &lhs, T rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy ^= rhs;
@@ -441,7 +441,7 @@ struct uint128_t {
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  friend uint128_t operator%(const uint128_t &lhs, T rhs)
+  constexpr friend uint128_t operator%(const uint128_t &lhs, T rhs)
   {
     auto lhs_copy = lhs;
     return lhs_copy %= rhs;
@@ -449,7 +449,7 @@ struct uint128_t {
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  friend uint128_t operator&(T lhs, const uint128_t &rhs)
+  constexpr friend uint128_t operator&(T lhs, const uint128_t &rhs)
   {
     auto rhs_copy = rhs;
     return rhs_copy &= lhs;
@@ -457,7 +457,7 @@ struct uint128_t {
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  friend uint128_t operator|(T lhs, const uint128_t &rhs)
+  constexpr friend uint128_t operator|(T lhs, const uint128_t &rhs)
   {
     auto rhs_copy = rhs;
     return rhs_copy |= lhs;
@@ -465,7 +465,7 @@ struct uint128_t {
 
   template<typename T>
     requires std::is_integral_v<T> && (sizeof(T) <= 8)
-  friend uint128_t operator^(T lhs, const uint128_t &rhs)
+  constexpr friend uint128_t operator^(T lhs, const uint128_t &rhs)
   {
     auto rhs_copy = rhs;
     return rhs_copy ^= lhs;

@@ -168,6 +168,9 @@ target_link_libraries(unique_id_test
 gtest_discover_tests(unique_id_test)
 
 add_executable(long_integer_test
+    unique_id.h
+    uuid.h
+    uuid_test.cpp
     long_integer.h
     long_integer_test.cpp
 )
